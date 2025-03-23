@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC History Tracker</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary-color: #3a7bd5;
+      --primary-hover: #2c6cb8;
+      --secondary-color: #00d2ff;
+      --text-color: #333;
+      --background-color: #f9fafc;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --success-color: #38b2ac;
+      --warning-color: #ed8936;
+      --danger-color: #e53e3e;
+      --neutral-color: #718096;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+      --transition: all 0.2s ease;
+      --radius: 8px;
+    }
+    
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      width: 100%;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      overflow-x: hidden; /* Prevent horizontal scrolling at body level */
+    }
+    
+    h1, h2, h3 {
+      color: var(--text-color);
+      font-weight: 600;
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+      display: inline-block;
+    }
+    
+    h2 {
+      font-size: 1.5rem;
+      margin: 1.5rem 0 1rem;
+    }
+    
+    .container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .sidebar {
+      flex: 1;
+      min-width: 300px;
+      padding: 20px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+    }
+    
+    .main-content {
+      flex: 3;
+      min-width: 600px;
+      padding: 20px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+    }
+    
+    .form-group {
+      margin-bottom: 18px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 14px;
+      transition: var(--transition);
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(58, 123, 213, 0.15);
+    }
+    
+    .date-input-group {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .date-input-group select {
+      flex: 1;
+    }
+    
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      font-weight: 500;
+      transition: var(--transition);
+    }
+    
+    button:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      background-color: var(--neutral-color);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .actions {
+      margin: 24px 0;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+    
+    table, th, td {
+      border: 1px solid var(--border-color);
+    }
+    
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    /* Set column widths */
+    #parts-table th:nth-child(1) { width: 4%; } /* ID */
+    #parts-table th:nth-child(2) { width: 12%; } /* Brand */
+    #parts-table th:nth-child(3) { width: 18%; } /* Model */
+    #parts-table th:nth-child(4) { width: 10%; } /* Type */
+    #parts-table th:nth-child(5) { width: 10%; } /* Acquired */
+    #parts-table th:nth-child(6) { width: 12%; } /* Status */
+    #parts-table th:nth-child(7) { width: 17%; } /* Notes */
+    #parts-table th:nth-child(8) { width: 17%; } /* Actions */
+    
+    th {
+      background-color: rgba(58, 123, 213, 0.05);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    
+    thead {
+      background-color: rgba(58, 123, 213, 0.05);
+    }
+    
+    tbody tr:hover {
+      background-color: rgba(58, 123, 213, 0.05);
+    }
+    
+    /* Table action buttons container */
+    td .action-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+    
+    /* Make action buttons in tables more compact */
+    td button {
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      min-width: auto;
+    }
+    
+    /* Button types */
+    .edit-btn {
+      background-color: var(--primary-color);
+    }
+    
+    .view-timeline-btn {
+      background-color: var(--secondary-color);
+    }
+    
+    .connect-btn {
+      background-color: var(--success-color);
+    }
+    
+    .disconnect-btn {
+      background-color: var(--warning-color);
+    }
+    
+    .delete-btn {
+      background-color: var(--danger-color);
+    }
+    
+    .restore-btn {
+      background-color: var(--success-color);
+    }
+    
+    .rig-btn {
+      background-color: var(--neutral-color);
+    }
+    .file-info {
+      padding: 12px 16px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--card-shadow);
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .save-status {
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-size: 0.85em;
+      font-weight: 500;
+      margin-left: 10px;
+    }
+    
+    .saved {
+      background-color: rgba(56, 178, 172, 0.15);
+      color: var(--success-color);
+    }
+    
+    .unsaved {
+      background-color: rgba(237, 137, 54, 0.15);
+      color: var(--warning-color);
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .edit-form {
+      background-color: var(--card-bg);
+      padding: 24px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+      border-top: 4px solid var(--primary-color);
+    }
+    
+    .deleted-part {
+      background-color: rgba(229, 62, 62, 0.05);
+      opacity: 0.75;
+    }
+    
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(3px);
+    }
+    
+    .modal-content {
+      background-color: var(--card-bg);
+      margin: 8% auto;
+      padding: 24px;
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      animation: modalFadeIn 0.3s ease;
+    }
+    
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .close {
+      color: var(--neutral-color);
+      float: right;
+      font-size: 24px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      line-height: 1;
+    }
+    
+    .close:hover {
+      color: var(--danger-color);
+    }
+    
+    .tab-nav {
+      display: flex;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border-color);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-button {
+      padding: 12px 16px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--neutral-color);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: var(--transition);
+    }
+    
+    .tab-button:hover {
+      color: var(--primary-color);
+    }
+    
+    .tab-button.active {
+      color: var(--primary-color);
+      border-bottom: 3px solid var(--primary-color);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    /* Timeline styles */
+    .timeline {
+      margin: 36px 0;
+      position: relative;
+    }
+    
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 20px;
+      height: 100%;
+      width: 3px;
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+    
+    .timeline-item {
+      position: relative;
+      margin-bottom: 36px;
+      padding-left: 60px;
+    }
+    
+    .timeline-date {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+    
+    .timeline-content {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--card-shadow);
+      transition: var(--transition);
+    }
+    
+    .timeline-content:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 5px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      border: 3px solid var(--background-color);
+      box-shadow: 0 0 0 1px var(--border-color);
+    }
+    
+    .timeline-item.connected::before {
+      background: var(--success-color);
+    }
+    
+    .timeline-item.disconnected::before {
+      background: var(--warning-color);
+    }
+    
+    .timeline-item.disposed::before {
+      background: var(--danger-color);
+    }
+    
+    /* Browser warning */
+    .browser-warning {
+      background-color: rgba(237, 137, 54, 0.15);
+      color: var(--warning-color);
+      padding: 15px 20px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      border-left: 4px solid var(--warning-color);
+      font-weight: 500;
+    }
+    
+    /* Tabs container */
+    .tabs-container {
+      margin-bottom: 30px;
+    }
+    
+    /* Rig cards */
+    .rig-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+      border-top: 3px solid var(--primary-color);
+      transition: var(--transition);
+    }
+    
+    .rig-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.07);
+    }
+    
+    .rig-card.historical {
+      border-top-color: var(--neutral-color);
+    }
+    
+    .rig-card-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .rig-card-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--primary-color);
+    }
+    
+    /* Parts bin grid */
+    .part-bin-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    
+    /* Part cards */
+    .part-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--card-shadow);
+      transition: var(--transition);
+      border-left: 3px solid var(--neutral-color);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .part-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+    }
+    
+    .part-card-header {
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-color);
+      font-size: 1.05rem;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .part-card-actions {
+      margin-top: auto;
+      padding-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    /* Rig parts list */
+    .rig-parts-list-items {
+      list-style-type: none;
+      padding-left: 0;
+      margin-top: 10px;
+    }
+    
+    .rig-part-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .rig-part-item:last-child {
+      border-bottom: none;
+    }
+    
+    .part-info {
+      flex: 1;
+      padding-right: 10px;
+    }
+    
+    .part-actions {
+      display: flex;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    
+    /* Small button style */
+    .small-btn {
+      font-size: 0.8em;
+      padding: 5px 10px;
+    }
+    
+    /* Back button */
+    .back-button {
+      margin-bottom: 20px;
+      background-color: var(--neutral-color);
+      display: inline-block;
+    }
+    
+    .back-button:hover {
+      background-color: var(--text-color);
+    }
+    
+    /* Admin buttons styling */
+    .admin-button {
+      border: 1px dashed var(--neutral-color);
+      background-color: rgba(113, 128, 150, 0.1) !important;
+      color: var(--neutral-color) !important;
+      font-style: italic;
+      position: relative;
+    }
+    
+    .admin-button:hover {
+      background-color: rgba(113, 128, 150, 0.2) !important;
+    }
+    
+    /* Timeline admin actions */
+    .timeline-admin-actions {
+      margin-top: 12px;
+      text-align: right;
+    }
+    
+    /* Part timeline view */
+    #part-timeline-view {
+      padding: 24px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+    }
+    
+    #part-timeline {
+      margin-top: 24px;
+    }
+    
+    /* Empty timeline message */
+    .empty-timeline {
+      padding: 24px;
+      text-align: center;
+      color: var(--neutral-color);
+      font-style: italic;
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius);
+      margin-top: 24px;
+    }
+    
+    /* Action header with title and button */
+    .action-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .primary-button {
+      background-color: var(--primary-color);
+    }
+    
+    /* Table container with scroll */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      width: 100%;
+    }
+    
+    /* Table footer styling */
+    #parts-table tfoot td {
+      text-align: right;
+      background-color: var(--background-color);
+      font-size: 0.85rem;
+      color: var(--neutral-color);
+      padding: 8px 12px;
+      border-top: 2px solid var(--border-color);
+    }
+    
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 1100px) {
+      /* More compact table on smaller screens */
+      #parts-table th:nth-child(1) { width: 30px; } /* ID */
+      #parts-table th:nth-child(2) { width: 10%; } /* Brand */
+      #parts-table th:nth-child(3) { width: 15%; } /* Model */
+      #parts-table th:nth-child(4) { width: 8%; } /* Type */
+      #parts-table th:nth-child(5) { width: 9%; } /* Acquired */
+      #parts-table th:nth-child(6) { width: 10%; } /* Status */
+      #parts-table th:nth-child(7) { width: 13%; } /* Notes */
+    }
+
+    /* Tablet and mobile adjustments */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .container {
+        flex-direction: column;
+      }
+      
+      .sidebar, .main-content {
+        min-width: 100%;
+        width: 100%;
+      }
+      
+      .part-bin-list {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      }
+      
+      .modal-content {
+        width: 95%;
+        padding: 16px;
+        margin: 5% auto;
+      }
+      
+      .part-card-actions, .part-actions {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .part-card-actions button, .part-actions button {
+        width: 100%;
+      }
+      
+      .rig-part-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .part-actions {
+        margin-top: 8px;
+        width: 100%;
+      }
+      
+      .action-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      
+      .action-header button {
+        width: 100%;
+      }
+      
+      /* Filter controls in mobile view */
+      .filter-controls {
+        flex-direction: column;
+      }
+      
+      .filter-controls select, 
+      .filter-controls input,
+      .filter-controls button {
+        max-width: none;
+        width: 100%;
+      }
+    }
+    
+    /* Dark mode support - automatically applies if user prefers dark mode */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #4dabf7;
+        --primary-hover: #339af0;
+        --text-color: #e2e8f0;
+        --background-color: #171923;
+        --card-bg: #1a202c;
+        --border-color: #2d3748;
+        --success-color: #4fd1c5;
+        --warning-color: #f6ad55;
+        --danger-color: #fc8181;
+        --neutral-color: #a0aec0;
+      }
+      
+      /* Fix dropdown text color in dark mode */
+      select, input {
+        color: var(--text-color);
+      }
+      
+      .timeline-item::before {
+        border-color: var(--background-color);
+      }
+    }
+    
+    /* Filter and Sort Bar Styles */
+    .filter-sort-bar {
+      margin-bottom: 20px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      box-shadow: var(--card-shadow);
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .filter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .filter-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: var(--primary-color);
+    }
+    
+    .active-filters-display {
+      font-size: 0.85rem;
+      color: var(--neutral-color);
+      font-style: italic;
+    }
+    
+    .active-filters-display.has-filters {
+      color: var(--text-color);
+      font-style: normal;
+      font-weight: 500;
+    }
+    
+    .filter-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .filter-controls select, 
+    .filter-controls input {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-color);
+      background-color: var(--card-bg);
+      flex-grow: 1;
+      min-width: 120px;
+      max-width: 200px;
+    }
+    
+    .filter-button {
+      padding: 8px 12px;
+      background-color: var(--neutral-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    .filter-button:hover {
+      background-color: var(--primary-color);
+    }
+    
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 5px;
+      width: 0;
+      height: 0;
+    }
+    
+    th[data-sort] {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    
+    th[data-sort]:hover {
+      background-color: rgba(58, 123, 213, 0.1);
+    }
+    
+    th[data-sort].sort-asc .sort-indicator::after {
+      content: "▲";
+      font-size: 0.7em;
+      color: var(--primary-color);
+    }
+    
+    th[data-sort].sort-desc .sort-indicator::after {
+      content: "▼";
+      font-size: 0.7em;
+      color: var(--primary-color);
+    }
+    
+    /* Toast notification styles */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      pointer-events: none;
+    }
+    
+    .toast {
+      padding: 12px 18px;
+      background-color: var(--primary-color);
+      color: white;
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      animation: toast-slide-in 0.3s ease forwards, toast-slide-out 0.3s ease 3s forwards;
+      max-width: 300px;
+      pointer-events: auto;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .toast.success {
+      background-color: var(--success-color);
+    }
+    
+    .toast.error {
+      background-color: var(--danger-color);
+    }
+    
+    .toast.warning {
+      background-color: var(--warning-color);
+    }
+    
+    .toast::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.3);
+      animation: toast-timer 3s linear forwards;
+    }
+    
+    @keyframes toast-slide-in {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes toast-slide-out {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    
+    @keyframes toast-timer {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>PC History Tracker</h1>
+  
+  <div id="browser-warning" class="browser-warning hidden">
+    Your browser does not support the File System Access API. Please use Chrome or Edge for the best experience with auto-saving.
+  </div>
+  
+  <div class="actions">
+    <button id="open-db">Open Database</button>
+    <button id="create-db">Create New Database</button>
+  </div>
+  
+  <div id="file-info" class="file-info hidden">
+    <div>
+      Currently editing: <span id="current-file">No file open</span>
+    </div>
+    <div class="save-status saved" id="save-status">Saved</div>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <div id="app-container" class="hidden">
+    <div class="tabs-container">
+      <div class="tab-nav">
+        <button class="tab-button active" data-tab="parts-tab">Parts</button>
+        <button class="tab-button" data-tab="rigs-tab">Rigs</button>
+        <button class="tab-button" data-tab="parts-bin-tab">Parts Bin</button>
+      </div>
+      
+      <!-- Parts Tab -->
+      <div id="parts-tab" class="tab-content active">
+        <div id="edit-form" class="edit-form hidden">
+          <h2>Edit Part</h2>
+          <form id="edit-part-form">
+            <input type="hidden" id="edit-part-id">
+            <div class="form-group">
+              <label for="edit-part-brand">Brand:</label>
+              <input type="text" id="edit-part-brand" list="brand-suggestions" autocomplete="off" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-part-model">Model:</label>
+              <input type="text" id="edit-part-model" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-part-type">Type:</label>
+              <select id="edit-part-type">
+                <option value="motherboard">Motherboard</option>
+                <option value="cpu">CPU</option>
+                <option value="gpu">GPU</option>
+                <option value="ram">RAM</option>
+                <option value="storage">Storage</option>
+                <option value="psu">Power Supply</option>
+                <option value="case">Case</option>
+                <option value="cooling">Cooling</option>
+                <option value="monitor">Monitor</option>
+                <option value="peripheral">Peripheral</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit-part-acquisition-date">Acquisition Date:</label>
+              <div class="date-input-group">
+                <select id="edit-part-acquisition-year" required>
+                  <option value="">Year</option>
+                  <!-- Years will be populated by JavaScript -->
+                </select>
+                <select id="edit-part-acquisition-month">
+                  <option value="">Month (optional)</option>
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+                <select id="edit-part-acquisition-day">
+                  <option value="">Day (optional)</option>
+                  <!-- Days will be populated by JavaScript -->
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-part-notes">Notes:</label>
+              <textarea id="edit-part-notes" rows="4"></textarea>
+            </div>
+            <div>
+              <button type="submit">Save Changes</button>
+              <button type="button" id="cancel-edit">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="action-header">
+          <h2>Parts List</h2>
+          <button id="add-part-button" class="primary-button">+ Add New Part</button>
+        </div>
+        
+        <!-- Parts Filter and Sort Bar -->
+        <div class="filter-sort-bar">
+          <div class="filter-header">
+            <h3>Filters & Sorting</h3>
+            <div class="active-filters-display" id="active-filters-display">No active filters</div>
+          </div>
+          <div class="filter-controls">
+            <select id="filter-type">
+              <option value="all">All Types</option>
+              <option value="motherboard">Motherboard</option>
+              <option value="cpu">CPU</option>
+              <option value="gpu">GPU</option>
+              <option value="ram">RAM</option>
+              <option value="storage">Storage</option>
+              <option value="psu">Power Supply</option>
+              <option value="case">Case</option>
+              <option value="cooling">Cooling</option>
+              <option value="monitor">Monitor</option>
+              <option value="peripheral">Peripheral</option>
+              <option value="other">Other</option>
+            </select>
+            <select id="filter-status">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="bin">In Bin</option>
+              <option value="deleted">Deleted</option>
+            </select>
+            <input type="text" id="filter-search" placeholder="Search...">
+            <button id="apply-filters" class="filter-button">Apply Filters</button>
+            <button id="clear-filters" class="filter-button">Clear</button>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table id="parts-table">
+            <thead>
+              <tr>
+                <th data-sort="id">ID <span class="sort-indicator"></span></th>
+                <th data-sort="brand">Brand <span class="sort-indicator"></span></th>
+                <th data-sort="model">Model <span class="sort-indicator"></span></th>
+                <th data-sort="type">Type <span class="sort-indicator"></span></th>
+                <th data-sort="acquisition_date">Acquired <span class="sort-indicator"></span></th>
+                <th data-sort="status">Status <span class="sort-indicator"></span></th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Parts will be listed here -->
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="8" id="results-count">0 parts found</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Add Part Modal -->
+      <div id="add-part-modal" class="modal">
+        <div class="modal-content">
+          <span class="close" id="close-add-part">&times;</span>
+          <h2>Add New Part</h2>
+          <form id="part-form">
+            <div class="form-group">
+              <label for="part-brand">Brand:</label>
+              <input type="text" id="part-brand" list="brand-suggestions" autocomplete="off" required>
+              <datalist id="brand-suggestions">
+                <!-- Brands will be populated by JavaScript -->
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label for="part-model">Model:</label>
+              <input type="text" id="part-model" required>
+            </div>
+            <div class="form-group">
+              <label for="part-type">Type:</label>
+              <select id="part-type">
+                <option value="motherboard">Motherboard</option>
+                <option value="cpu">CPU</option>
+                <option value="gpu">GPU</option>
+                <option value="ram">RAM</option>
+                <option value="storage">Storage</option>
+                <option value="psu">Power Supply</option>
+                <option value="case">Case</option>
+                <option value="cooling">Cooling</option>
+                <option value="monitor">Monitor</option>
+                <option value="peripheral">Peripheral</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="part-acquisition-date">Acquisition Date:</label>
+              <div class="date-input-group">
+                <select id="part-acquisition-year" required>
+                  <option value="">Year</option>
+                  <!-- Years will be populated by JavaScript -->
+                </select>
+                <select id="part-acquisition-month">
+                  <option value="">Month (optional)</option>
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+                <select id="part-acquisition-day">
+                  <option value="">Day (optional)</option>
+                  <!-- Days will be populated by JavaScript -->
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="part-notes">Notes:</label>
+              <textarea id="part-notes" rows="4"></textarea>
+            </div>
+            <button type="submit">Add Part</button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Rigs Tab -->
+      <div id="rigs-tab" class="tab-content">
+        <h2>Active Rigs</h2>
+        <div id="rigs-container">
+          <!-- Rigs will be displayed here -->
+        </div>
+        
+        <h2>Historical Rigs</h2>
+        <div id="historical-rigs-container">
+          <!-- Historical rigs will be displayed here -->
+        </div>
+      </div>
+      
+      <!-- Parts Bin Tab -->
+      <div id="parts-bin-tab" class="tab-content">
+        <h2>Parts Bin</h2>
+        <div class="part-bin-filters">
+          <select id="part-bin-filter-type">
+            <option value="all">All Types</option>
+            <option value="motherboard">Motherboard</option>
+            <option value="cpu">CPU</option>
+            <option value="gpu">GPU</option>
+            <option value="ram">RAM</option>
+            <option value="storage">Storage</option>
+            <option value="psu">Power Supply</option>
+            <option value="case">Case</option>
+            <option value="cooling">Cooling</option>
+            <option value="monitor">Monitor</option>
+            <option value="peripheral">Peripheral</option>
+            <option value="other">Other</option>
+          </select>
+          <button id="refresh-parts-bin">Refresh</button>
+        </div>
+        <div id="parts-bin-container" class="part-bin-list">
+          <!-- Unconnected parts will be displayed here -->
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Part Timeline View -->
+  <div id="part-timeline-view" class="hidden">
+    <button id="back-to-parts" class="back-button">← Back to Parts</button>
+    <h2>Timeline for <span id="timeline-part-name"></span></h2>
+    <div id="part-timeline" class="timeline">
+      <!-- Timeline items will be displayed here -->
+    </div>
+  </div>
+  
+  <!-- Date Input Modal Template -->
+  <div id="date-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="date-modal-title">Select Date</h2>
+      <form id="date-form">
+        <input type="hidden" id="date-form-action">
+        <input type="hidden" id="date-form-id">
+        <div class="form-group">
+          <label for="date-year">Year:</label>
+          <select id="date-year" required>
+            <option value="">Select Year</option>
+            <!-- Years will be populated by JavaScript -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date-month">Month (optional):</label>
+          <select id="date-month">
+            <option value="">Select Month</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date-day">Day (optional):</label>
+          <select id="date-day">
+            <option value="">Select Day</option>
+            <!-- Days will be populated by JavaScript -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date-notes">Notes:</label>
+          <textarea id="date-notes" rows="3"></textarea>
+        </div>
+        <button type="submit" id="date-form-submit">Save</button>
+      </form>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
