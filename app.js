@@ -1824,7 +1824,8 @@ async function showPartTimeline(partId) {
     // Get the part details
     // Using direct query construction since this is a single parameter
     const partResult = db.exec(`
-      SELECT brand, model, type, acquisition_date, date_precision
+      SELECT brand, model, type, acquisition_date, date_precision, is_deleted,
+      (SELECT COUNT(*) FROM connections c WHERE c.part_id = ${partId} AND c.disconnected_at IS NULL) as is_connected
       FROM parts
       WHERE id = ${partId}
     `);
@@ -1837,11 +1838,20 @@ async function showPartTimeline(partId) {
     
     const partData = partResult[0].values[0];
     const partName = `${partData[0]} ${partData[1]} (${partData[2]})`;
+    const partType = partData[2];
+    const isDeleted = partData[5] === 1;
+    const isConnected = partData[6] > 0;
     
     console.log('Part name for timeline:', partName);
     
     // Update the timeline title
     document.getElementById('timeline-part-name').textContent = partName;
+    
+    // Remove any existing action buttons
+    const existingActions = document.querySelector('#part-timeline-view .actions');
+    if (existingActions) {
+      existingActions.remove();
+    }
     
     // Clear the timeline
     const timelineContainer = document.getElementById('part-timeline');
@@ -2012,73 +2022,71 @@ async function showPartTimeline(partId) {
         const adminActions = document.createElement('div');
         adminActions.className = 'timeline-admin-actions';
         
-        // Add delete button for each event type
-        const deleteEventBtn = document.createElement('button');
-        deleteEventBtn.textContent = 'Delete Event';
-        deleteEventBtn.className = 'admin-button small-btn';
-        deleteEventBtn.addEventListener('click', async () => {
-          if (confirm('Are you sure you want to delete this event from history? This cannot be undone.')) {
-            try {
-              // Different handling based on event type
-              switch(event.type) {
-                case 'acquisition':
-                  // Clear acquisition date
-                  db.run(`UPDATE parts SET acquisition_date = NULL, date_precision = 'none' WHERE id = ${partId}`);
-                  break;
-                  
-                case 'connected':
-                  // Delete specific connection by finding the matching record
-                  // We identify it by matching all the fields
-                  db.run(`
-                    DELETE FROM connections 
-                    WHERE part_id = ${partId} 
-                    AND connected_at = '${event.date}'
-                    AND disconnected_at IS NULL
-                  `);
-                  break;
-                  
-                case 'disconnected':
-                  // Find the connection and clear its disconnected date
-                  db.run(`
-                    UPDATE connections 
-                    SET disconnected_at = NULL, disconnected_precision = NULL
-                    WHERE part_id = ${partId} 
-                    AND disconnected_at = '${event.date}'
-                  `);
-                  break;
-                  
-                case 'disposed':
-                  // Delete disposal record and un-delete the part
-                  db.run(`DELETE FROM disposals WHERE part_id = ${partId} AND disposed_at = '${event.date}'`);
-                  db.run(`UPDATE parts SET is_deleted = 0 WHERE id = ${partId}`);
-                  break;
-                  
-                default:
-                  alert('Unknown event type');
-                  return;
+        // Only add delete event button for connected, disconnected, and disposed events (not for acquisition)
+        if (event.type !== 'acquisition') {
+          const deleteEventBtn = document.createElement('button');
+          deleteEventBtn.textContent = 'Delete Event';
+          deleteEventBtn.className = 'admin-button small-btn';
+          deleteEventBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete this event from history? This cannot be undone.')) {
+              try {
+                // Different handling based on event type
+                switch(event.type) {
+                  case 'connected':
+                    // Delete specific connection by finding the matching record
+                    // We identify it by matching all the fields
+                    db.run(`
+                      DELETE FROM connections 
+                      WHERE part_id = ${partId} 
+                      AND connected_at = '${event.date}'
+                      AND disconnected_at IS NULL
+                    `);
+                    break;
+                    
+                  case 'disconnected':
+                    // Find the connection and clear its disconnected date
+                    db.run(`
+                      UPDATE connections 
+                      SET disconnected_at = NULL, disconnected_precision = NULL
+                      WHERE part_id = ${partId} 
+                      AND disconnected_at = '${event.date}'
+                    `);
+                    break;
+                    
+                  case 'disposed':
+                    // Delete disposal record and un-delete the part
+                    db.run(`DELETE FROM disposals WHERE part_id = ${partId} AND disposed_at = '${event.date}'`);
+                    db.run(`UPDATE parts SET is_deleted = 0 WHERE id = ${partId}`);
+                    break;
+                    
+                  default:
+                    alert('Unknown event type');
+                    return;
+                }
+                
+                // Save changes
+                hasUnsavedChanges = true;
+                updateSaveStatus();
+                await saveToFile();
+                
+                // Refresh the timeline
+                showPartTimeline(partId);
+                
+                // Also refresh the part list
+                refreshPartsList();
+                refreshPartsBin();
+                refreshRigs();
+                
+              } catch (err) {
+                console.error('Error deleting event:', err);
+                alert('Error deleting event: ' + err.message);
               }
-              
-              // Save changes
-              hasUnsavedChanges = true;
-              updateSaveStatus();
-              await saveToFile();
-              
-              // Refresh the timeline
-              showPartTimeline(partId);
-              
-              // Also refresh the part list
-              refreshPartsList();
-              refreshPartsBin();
-              refreshRigs();
-              
-            } catch (err) {
-              console.error('Error deleting event:', err);
-              alert('Error deleting event: ' + err.message);
             }
-          }
-        });
+          });
+          
+          adminActions.appendChild(deleteEventBtn);
+        }
         
-        adminActions.appendChild(deleteEventBtn);
         content.appendChild(adminActions);
         
         item.appendChild(dateElement);
@@ -2086,6 +2094,38 @@ async function showPartTimeline(partId) {
         timelineContainer.appendChild(item);
       });
     }
+    
+    // Add part action buttons to the timeline view
+    const partActionsContainer = document.createElement('div');
+    partActionsContainer.className = 'actions';
+    
+    // Only add connect/disconnect and dispose buttons if not a motherboard and not deleted
+    if (partType !== 'motherboard' && !isDeleted) {
+      // Connect/Disconnect button
+      const connectBtn = document.createElement('button');
+      connectBtn.textContent = isConnected ? 'Disconnect' : 'Connect';
+      connectBtn.className = isConnected ? 'disconnect-btn' : 'connect-btn';
+      connectBtn.addEventListener('click', () => isConnected ? showDisconnectOptions(partId) : showConnectOptions(partId));
+      partActionsContainer.appendChild(connectBtn);
+      
+      // Dispose button
+      const disposeBtn = document.createElement('button');
+      disposeBtn.textContent = 'Dispose';
+      disposeBtn.className = 'delete-btn';
+      disposeBtn.addEventListener('click', () => deletePart(partId));
+      partActionsContainer.appendChild(disposeBtn);
+    }
+    
+    // Admin Delete button - always available
+    const adminDeleteBtn = document.createElement('button');
+    adminDeleteBtn.textContent = 'Delete from History';
+    adminDeleteBtn.className = 'admin-button';
+    adminDeleteBtn.addEventListener('click', () => hardDeletePart(partId));
+    partActionsContainer.appendChild(adminDeleteBtn);
+    
+    // Insert the action buttons after the back button and before the timeline
+    const backButton = document.getElementById('back-to-parts');
+    backButton.parentNode.insertBefore(partActionsContainer, backButton.nextSibling);
     
     // Show the timeline view
     document.getElementById('app-container').classList.add('hidden');
