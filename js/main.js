@@ -51,9 +51,17 @@ window.App = (function() {
           // Add active class to the clicked tab button
           button.classList.add('active');
           
-          // If parts tab, refresh parts list
+          // Refresh appropriate content based on selected tab
           if (tabId === 'parts-tab') {
             this.refreshPartsList();
+          } else if (tabId === 'rigs-tab') {
+            if (window.RigsView && typeof window.RigsView.refresh === 'function') {
+              window.RigsView.refresh();
+            }
+          } else if (tabId === 'parts-bin-tab') {
+            if (window.PartsBinView && typeof window.PartsBinView.refresh === 'function') {
+              window.PartsBinView.refresh();
+            }
           }
         });
       });
@@ -126,6 +134,8 @@ window.App = (function() {
       // Initialize components
       this.initPartsList();
       this.initTimelineView();
+      this.initRigsView();
+      this.initPartsBinView();
       
       // Refresh the parts list
       this.refreshPartsList();
@@ -206,6 +216,22 @@ window.App = (function() {
       // Will be implemented in timeline-view.js
       if (window.TimelineView && typeof window.TimelineView.init === 'function') {
         window.TimelineView.init();
+      }
+    },
+    
+    // Initialize the rigs view component
+    initRigsView: function() {
+      // Will be implemented in rigs-view.js
+      if (window.RigsView && typeof window.RigsView.init === 'function') {
+        window.RigsView.init();
+      }
+    },
+    
+    // Initialize the parts bin view component
+    initPartsBinView: function() {
+      // Will be implemented in parts-bin-view.js
+      if (window.PartsBinView && typeof window.PartsBinView.init === 'function') {
+        window.PartsBinView.init();
       }
     }
   };

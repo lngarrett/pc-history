@@ -18,6 +18,20 @@ window.PartsList = (function() {
   
   return {
     /**
+     * Set the sort parameters for the parts list
+     * @param {string} column - Column to sort by
+     * @param {string} direction - Sort direction ('asc' or 'desc')
+     */
+    setSort: function(column, direction) {
+      if (column) {
+        currentSort.column = column;
+      }
+      if (direction) {
+        currentSort.direction = direction;
+      }
+    },
+    
+    /**
      * Initialize the parts list component
      */
     init: function() {

@@ -864,8 +864,6 @@
     .sort-indicator {
       display: inline-block;
       margin-left: 5px;
-      width: 0;
-      height: 0;
     }
     
     th[data-sort] {
@@ -878,15 +876,32 @@
       background-color: rgba(58, 123, 213, 0.1);
     }
     
+    /* Hide indicators by default */
+    th[data-sort] .sort-indicator {
+      display: none;
+    }
+    
+    /* Show and style for ascending sort */
+    th[data-sort].sort-asc .sort-indicator {
+      display: inline-block;
+      content: "";
+    }
+    
     th[data-sort].sort-asc .sort-indicator::after {
-      content: "▲";
-      font-size: 0.7em;
+      content: "↑";
+      font-size: 0.9em;
       color: var(--primary-color);
     }
     
+    /* Show and style for descending sort */
+    th[data-sort].sort-desc .sort-indicator {
+      display: inline-block;
+      content: "";
+    }
+    
     th[data-sort].sort-desc .sort-indicator::after {
-      content: "▼";
-      font-size: 0.7em;
+      content: "↓";
+      font-size: 0.9em;
       color: var(--primary-color);
     }
     
@@ -1056,7 +1071,7 @@
 
         <div class="action-header">
           <h2>Parts List</h2>
-          <button id="add-part-button" class="primary-button">+ Add New Part</button>
+          <button id="add-part-btn" class="primary-button">+ Add New Part</button>
         </div>
         
         <!-- Parts Filter and Sort Bar -->
@@ -1306,12 +1321,18 @@
   <!-- Components -->
   <script src="js/components/parts-list.js"></script>
   <script src="js/components/timeline-view.js"></script>
+  <script src="js/components/rigs-view.js"></script>
+  <script src="js/components/parts-bin-view.js"></script>
   
   <!-- Controllers -->
+  <script src="js/controllers/part-controller.js"></script>
   <script src="js/controllers/connection-controller.js"></script>
   <script src="js/controllers/disposal-controller.js"></script>
+  <script src="js/controllers/rig-controller.js"></script>
   
   <!-- Main Application -->
   <script src="js/main.js"></script>
+  <!-- Additional event handlers and UI logic -->
+  <script src="app.js"></script>
 </body>
 </html>
