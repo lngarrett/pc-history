@@ -672,10 +672,26 @@
     
     .compact-filter-section {
       display: flex;
-      gap: 6px;
+      gap: 12px;
       flex-wrap: wrap;
       flex-grow: 1;
-      justify-content: flex-end;
+      justify-content: space-between;
+    }
+    
+    .filter-controls-group,
+    .view-controls-group,
+    .action-controls-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    .control-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--neutral-color);
+      margin-right: 2px;
     }
     
     .compact-select, .compact-search {
@@ -696,6 +712,15 @@
       height: 30px;
       min-width: auto;
       white-space: nowrap;
+    }
+    
+    .icon-btn {
+      width: 30px;
+      padding: 0;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .add-btn {
@@ -967,6 +992,76 @@
       color: var(--neutral-color);
       padding: 8px 12px;
       border-top: 2px solid var(--border-color);
+    }
+    
+    /* Group header styles */
+    .group-header {
+      background-color: var(--background-color);
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s ease;
+    }
+    
+    .group-header td {
+      padding: 12px 15px;
+      font-weight: 600;
+      font-size: 1.05rem;
+      border-bottom-width: 2px;
+    }
+    
+    .group-header .group-toggle {
+      cursor: pointer;
+      width: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      transition: transform 0.2s ease;
+    }
+    
+    .group-header.collapsed .group-toggle {
+      transform: rotate(-90deg);
+    }
+    
+    .group-header .group-name {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    .group-header .group-info {
+      font-size: 0.85rem;
+      font-weight: normal;
+      color: var(--neutral-color);
+      margin-left: 12px;
+    }
+    
+    .group-header .group-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+    
+    /* Rig-specific group styling */
+    .rig-group-header {
+      border-left: 5px solid; /* Color set dynamically */
+    }
+    
+    .rig-group-header td:first-child {
+      border-left: none;
+    }
+    
+    /* Grouped row styling */
+    tr.grouped-row {
+      border-left: 5px solid transparent; /* Will be colored to match group */
+    }
+    
+    tr.grouped-row td:first-child {
+      border-left: none;
+    }
+    
+    /* Collapsed group styling */
+    tr.group-content.hidden {
+      display: none;
     }
     
     /* Responsive adjustments for smaller screens */
@@ -1397,30 +1492,56 @@
       </div>
       
       <div class="compact-filter-section">
-        <select id="filter-type" class="compact-select">
-          <option value="all">All Types</option>
-          <option value="motherboard">Motherboard</option>
-          <option value="cpu">CPU</option>
-          <option value="gpu">GPU</option>
-          <option value="ram">RAM</option>
-          <option value="storage">Storage</option>
-          <option value="psu">Power Supply</option>
-          <option value="case">Case</option>
-          <option value="cooling">Cooling</option>
-          <option value="monitor">Monitor</option>
-          <option value="peripheral">Peripheral</option>
-          <option value="other">Other</option>
-        </select>
-        <select id="filter-status" class="compact-select">
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="bin">In Bin</option>
-          <option value="deleted">Deleted</option>
-        </select>
-        <input type="text" id="filter-search" class="compact-search" placeholder="Search...">
-        <button id="apply-filters" class="compact-btn">Filter</button>
-        <button id="clear-filters" class="compact-btn">Clear</button>
-        <button id="add-part-btn" class="compact-btn add-btn">+</button>
+        <div class="filter-controls-group">
+          <label for="filter-type" class="control-label">Filter:</label>
+          <select id="filter-type" class="compact-select">
+            <option value="all">All Types</option>
+            <option value="motherboard">Motherboard</option>
+            <option value="cpu">CPU</option>
+            <option value="gpu">GPU</option>
+            <option value="ram">RAM</option>
+            <option value="storage">Storage</option>
+            <option value="psu">Power Supply</option>
+            <option value="case">Case</option>
+            <option value="cooling">Cooling</option>
+            <option value="monitor">Monitor</option>
+            <option value="peripheral">Peripheral</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="filter-status" class="compact-select">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="bin">In Bin</option>
+            <option value="deleted">Deleted</option>
+          </select>
+          <input type="text" id="filter-search" class="compact-search" placeholder="Search...">
+        </div>
+        
+        <div class="view-controls-group">
+          <label for="group-by" class="control-label">Group By:</label>
+          <select id="group-by" class="compact-select">
+            <option value="none">None</option>
+            <option value="rig">Rig</option>
+            <option value="type">Type</option>
+            <option value="status">Status</option>
+          </select>
+          
+          <label for="sort-by" class="control-label">Sort By:</label>
+          <select id="sort-by" class="compact-select">
+            <option value="brand">Brand</option>
+            <option value="model">Model</option>
+            <option value="type">Type</option>
+            <option value="acquisition_date" selected>Acquired</option>
+            <option value="status">Status</option>
+          </select>
+          <button id="sort-direction" class="compact-btn icon-btn" title="Toggle Sort Direction">↓</button>
+        </div>
+        
+        <div class="action-controls-group">
+          <button id="apply-filters" class="compact-btn">Apply</button>
+          <button id="clear-filters" class="compact-btn">Clear</button>
+          <button id="add-part-btn" class="compact-btn add-btn">+</button>
+        </div>
       </div>
       
       <div class="active-filters-display" id="active-filters-display">No filters</div>
@@ -1500,11 +1621,11 @@
             <thead>
               <tr>
                 <th class="actions-col"></th>
-                <th data-sort="type" class="type-col"><span class="sort-indicator"></span></th>
-                <th data-sort="brand" class="brand-col">Brand <span class="sort-indicator"></span></th>
-                <th data-sort="model" class="model-col">Model <span class="sort-indicator"></span></th>
-                <th data-sort="acquisition_date" class="acquired-col">Acquired <span class="sort-indicator"></span></th>
-                <th data-sort="status" class="status-col">Status <span class="sort-indicator"></span></th>
+                <th class="type-col">Type</th>
+                <th class="brand-col">Brand</th>
+                <th class="model-col">Model</th>
+                <th class="acquired-col">Acquired</th>
+                <th class="status-col">Status</th>
                 <th class="notes-col">Notes</th>
               </tr>
             </thead>

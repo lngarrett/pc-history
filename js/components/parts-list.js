@@ -6,14 +6,43 @@
 window.PartsList = (function() {
   // Private variables
   let currentSort = {
-    column: 'id',
-    direction: 'asc'
+    column: 'acquisition_date',
+    direction: 'desc'
   };
 
   let currentFilters = {
     type: 'all',
     status: 'all',
     search: ''
+  };
+  
+  let currentGrouping = 'none'; // 'none', 'rig', 'type', or 'status'
+  
+  // Helper function to generate a color hash from the rig name
+  const getColorFromRigName = (name) => {
+    if (!name) return 'hsl(0, 0%, 75%)'; // Default gray
+    
+    // Simple hash function to generate a number from a string
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+    
+    // Avoid colors that are too similar by using predetermined hue ranges
+    // Divide the color wheel into 12 segments and select one based on hash
+    const segment = Math.abs(hash % 12);
+    const hueBase = segment * 30; // 12 segments * 30 degrees = 360 degrees
+    
+    // Add some variation within the segment
+    const hueVariation = Math.abs((hash >> 4) % 20) - 10; // -10 to +10 degrees
+    const hue = (hueBase + hueVariation + 360) % 360;
+    
+    // Ensure good saturation and lightness for all colors
+    const saturation = 75 + Math.abs((hash >> 8) % 15); // 75% to 90% saturation
+    const lightness = 75 + Math.abs((hash >> 12) % 10); // 75% to 85% lightness
+    
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   };
   
   return {
@@ -32,26 +61,73 @@ window.PartsList = (function() {
     },
     
     /**
+     * Set the grouping parameter for the parts list
+     * @param {string} groupBy - Group by parameter ('none', 'rig', 'type', 'status')
+     */
+    setGrouping: function(groupBy) {
+      if (groupBy && ['none', 'rig', 'type', 'status'].includes(groupBy)) {
+        currentGrouping = groupBy;
+      }
+    },
+    
+    /**
+     * Get the current grouping parameter
+     * @returns {string} Current grouping parameter
+     */
+    getGrouping: function() {
+      return currentGrouping;
+    },
+    
+    /**
      * Initialize the parts list component
      */
     init: function() {
-      // Make sure sort indicator spans exist
-      document.querySelectorAll('#parts-table th[data-sort]').forEach(header => {
-        // Make sure there's a sort indicator span
-        if (!header.querySelector('.sort-indicator')) {
-          const indicatorSpan = document.createElement('span');
-          indicatorSpan.className = 'sort-indicator';
-          header.appendChild(indicatorSpan);
-        }
+      // Initialize sort and group controls
+      const sortBySelect = document.getElementById('sort-by');
+      const sortDirectionBtn = document.getElementById('sort-direction');
+      const groupBySelect = document.getElementById('group-by');
+      
+      // Set initial values from the current state
+      if (sortBySelect) {
+        // Set initial selected option
+        const sortOption = sortBySelect.querySelector(`option[value="${currentSort.column}"]`);
+        if (sortOption) sortOption.selected = true;
         
-        // Set up sorting handlers
-        header.addEventListener('click', () => {
-          const column = header.getAttribute('data-sort');
-          // If clicking on the same column, toggle the direction
-          const newDirection = (currentSort.column === column && currentSort.direction === 'asc') ? 'desc' : 'asc';
-          this.refresh(column, newDirection);
+        // Setup sort change handler
+        sortBySelect.addEventListener('change', () => {
+          const column = sortBySelect.value;
+          this.setSort(column, currentSort.direction);
+          this.refresh();
         });
-      });
+      }
+      
+      // Set up sort direction toggle
+      if (sortDirectionBtn) {
+        // Set initial direction indicator
+        sortDirectionBtn.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+        
+        // Setup click handler
+        sortDirectionBtn.addEventListener('click', () => {
+          const newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc';
+          this.setSort(null, newDirection);
+          sortDirectionBtn.textContent = newDirection === 'asc' ? '↑' : '↓';
+          this.refresh();
+        });
+      }
+      
+      // Set up grouping control
+      if (groupBySelect) {
+        // Set initial selected option
+        const groupOption = groupBySelect.querySelector(`option[value="${currentGrouping}"]`);
+        if (groupOption) groupOption.selected = true;
+        
+        // Setup change handler
+        groupBySelect.addEventListener('change', () => {
+          const groupBy = groupBySelect.value;
+          this.setGrouping(groupBy);
+          this.refresh();
+        });
+      }
       
       // Set up filter controls
       document.getElementById('apply-filters').addEventListener('click', () => {
@@ -78,6 +154,36 @@ window.PartsList = (function() {
           search: ''
         });
       });
+      
+      // Set up global document click handler for group toggle
+      document.addEventListener('click', (event) => {
+        const toggleBtn = event.target.closest('.group-toggle');
+        if (toggleBtn) {
+          const header = toggleBtn.closest('.group-header');
+          if (header) {
+            const groupId = header.getAttribute('data-group-id');
+            this.toggleGroup(groupId);
+          }
+        }
+      });
+    },
+    
+    /**
+     * Toggle group expansion/collapse
+     * @param {string} groupId - ID of the group to toggle
+     */
+    toggleGroup: function(groupId) {
+      if (!groupId) return;
+      
+      const header = document.querySelector(`.group-header[data-group-id="${groupId}"]`);
+      if (!header) return;
+      
+      const isCollapsed = header.classList.toggle('collapsed');
+      
+      // Toggle visibility of associated content rows
+      document.querySelectorAll(`.group-content[data-group-id="${groupId}"]`).forEach(row => {
+        row.classList.toggle('hidden', isCollapsed);
+      });
     },
     
     /**
@@ -102,33 +208,39 @@ window.PartsList = (function() {
         currentFilters = { ...currentFilters, ...filters };
       }
       
-      // Update UI to show current sort
-      const headers = document.querySelectorAll('#parts-table th[data-sort]');
-      headers.forEach(header => {
-        const headerColumn = header.getAttribute('data-sort');
-        header.classList.remove('sort-asc', 'sort-desc');
-        
-        if (headerColumn === currentSort.column) {
-          header.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
-        }
-      });
-      
       // Update active filters display
       this.updateActiveFiltersDisplay();
+      
+      // Update sort UI
+      const sortBySelect = document.getElementById('sort-by');
+      const sortDirectionBtn = document.getElementById('sort-direction');
+      
+      if (sortBySelect) {
+        sortBySelect.value = currentSort.column;
+      }
+      
+      if (sortDirectionBtn) {
+        sortDirectionBtn.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+      }
       
       // Clear the table
       const tbody = document.querySelector('#parts-table tbody');
       DOMUtils.clearElement(tbody);
       
       try {
-        // Get parts with current sort and filters - placeholder until Part model is implemented
+        // Get parts with current sort and filters
         const parts = window.PartModel ? window.PartModel.getAllParts(currentFilters, currentSort.column, currentSort.direction) : [];
         
         // Update the results count
         document.getElementById('results-count').textContent = `${parts.length} parts found`;
         
-        // Render the parts
-        parts.forEach(part => this.renderPartRow(tbody, part));
+        // Handle grouping
+        if (currentGrouping !== 'none' && parts.length > 0) {
+          this.renderGroupedParts(tbody, parts);
+        } else {
+          // Render parts without grouping
+          parts.forEach(part => this.renderPartRow(tbody, part));
+        }
       } catch (err) {
         console.error('Error refreshing parts list:', err);
         document.getElementById('results-count').textContent = 'Error loading parts';
@@ -136,15 +248,210 @@ window.PartsList = (function() {
     },
     
     /**
+     * Render parts grouped by specified criteria
+     * @param {HTMLElement} tbody - Table body element
+     * @param {Array} parts - Array of part objects
+     */
+    renderGroupedParts: function(tbody, parts) {
+      // Group parts by the specified grouping
+      const groups = {};
+      const groupInfo = {};
+      
+      // First phase: group parts and collect metadata
+      parts.forEach(part => {
+        let groupValue = '';
+        let groupDisplay = '';
+        
+        // Determine grouping value based on current grouping
+        switch (currentGrouping) {
+          case 'rig':
+            // For rig grouping, use the rig_name or special value for ungrouped parts
+            groupValue = part.rig_name || 'ungrouped';
+            groupDisplay = part.rig_name || 'Ungrouped Parts';
+            break;
+            
+          case 'type':
+            groupValue = part.type;
+            groupDisplay = part.type.charAt(0).toUpperCase() + part.type.slice(1);
+            break;
+            
+          case 'status':
+            groupValue = part.status;
+            groupDisplay = part.status.charAt(0).toUpperCase() + part.status.slice(1);
+            break;
+            
+          default:
+            groupValue = 'all';
+            groupDisplay = 'All Parts';
+        }
+        
+        // Initialize group if not exists
+        if (!groups[groupValue]) {
+          groups[groupValue] = [];
+          groupInfo[groupValue] = {
+            display: groupDisplay,
+            count: 0,
+            metadata: {}
+          };
+          
+          // For rig grouping, initialize rig metadata
+          if (currentGrouping === 'rig' && part.rig_name) {
+            groupInfo[groupValue].metadata.rigName = part.rig_name;
+            groupInfo[groupValue].metadata.color = getColorFromRigName(part.rig_name);
+          }
+        }
+        
+        // Add part to its group
+        groups[groupValue].push(part);
+        groupInfo[groupValue].count++;
+        
+        // Collect additional rig metadata if applicable
+        if (currentGrouping === 'rig' && part.rig_name && part.type === 'motherboard') {
+          groupInfo[groupValue].metadata.motherboard = `${part.brand} ${part.model}`;
+          groupInfo[groupValue].metadata.motherboardId = part.id;
+        }
+      });
+      
+      // Second phase: render each group
+      Object.keys(groups).forEach(groupValue => {
+        const groupParts = groups[groupValue];
+        const info = groupInfo[groupValue];
+        
+        // Skip empty groups
+        if (groupParts.length === 0) return;
+        
+        // Create a unique ID for this group
+        const groupId = `group-${groupValue.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`;
+        
+        // Render group header
+        this.renderGroupHeader(tbody, groupId, info);
+        
+        // Render parts within this group
+        groupParts.forEach(part => {
+          // Create a class name for the group content
+          const row = this.renderPartRow(tbody, part, {
+            groupId,
+            isGrouped: true,
+            groupColor: info.metadata.color
+          });
+        });
+      });
+    },
+    
+    /**
+     * Render a group header
+     * @param {HTMLElement} tbody - Table body element
+     * @param {string} groupId - Group ID
+     * @param {Object} info - Group information
+     */
+    renderGroupHeader: function(tbody, groupId, info) {
+      const colCount = document.querySelectorAll('#parts-table th').length;
+      
+      // Create header row
+      const headerRow = DOMUtils.createElement('tr', {
+        className: currentGrouping === 'rig' ? 'group-header rig-group-header' : 'group-header',
+        dataset: { groupId }
+      });
+      
+      // If this is a rig group and has a color, set the left border color
+      if (currentGrouping === 'rig' && info.metadata && info.metadata.color) {
+        headerRow.style.borderLeftColor = info.metadata.color;
+      }
+      
+      // Create the content cell that spans all columns
+      const cell = DOMUtils.createElement('td', {
+        colSpan: colCount
+      });
+      
+      // Create group header content
+      const headerContent = DOMUtils.createElement('div', {
+        className: 'group-name'
+      });
+      
+      // Add toggle button
+      const toggleBtn = DOMUtils.createElement('span', {
+        className: 'group-toggle'
+      }, '▼');
+      headerContent.appendChild(toggleBtn);
+      
+      // Add group name and count
+      const nameSpan = DOMUtils.createElement('span', {}, `${info.display} (${info.count})`);
+      headerContent.appendChild(nameSpan);
+      
+      // Add group info if we have metadata
+      if (info.metadata) {
+        let infoText = '';
+        
+        // For rig groups, show the motherboard info
+        if (currentGrouping === 'rig' && info.metadata.motherboard) {
+          infoText = `Motherboard: ${info.metadata.motherboard}`;
+        }
+        
+        if (infoText) {
+          const infoSpan = DOMUtils.createElement('span', {
+            className: 'group-info'
+          }, infoText);
+          headerContent.appendChild(infoSpan);
+        }
+      }
+      
+      // Add actions for certain group types
+      if (currentGrouping === 'rig' && info.metadata && info.metadata.motherboardId) {
+        const actionsContainer = DOMUtils.createElement('div', {
+          className: 'group-actions'
+        });
+        
+        // Rename rig action
+        const renameAction = DOMUtils.createButton('Rename Rig', 'compact-btn', () => {
+          if (window.RigController && typeof window.RigController.showRigIdentityForm === 'function') {
+            window.RigController.showRigIdentityForm(info.metadata.motherboardId, info.metadata.rigName);
+          }
+        });
+        
+        actionsContainer.appendChild(renameAction);
+        cell.appendChild(actionsContainer);
+      }
+      
+      // Add content to the cell
+      cell.appendChild(headerContent);
+      headerRow.appendChild(cell);
+      
+      // Add row to table
+      tbody.appendChild(headerRow);
+    },
+    
+    /**
      * Render a part row
      * @param {HTMLElement} tbody - Table body element
      * @param {Object} part - Part data
+     * @param {Object} groupOptions - Group options for rendering (optional)
+     * @returns {HTMLElement} The created row
      */
-    renderPartRow: function(tbody, part) {
+    renderPartRow: function(tbody, part, groupOptions = {}) {
+      // Create row with appropriate classes for grouping
+      const rowClasses = [];
+      
+      if (part.is_deleted) {
+        rowClasses.push('deleted-part');
+      }
+      
+      if (groupOptions.isGrouped) {
+        rowClasses.push('grouped-row');
+        rowClasses.push('group-content');
+      }
+      
       const row = DOMUtils.createElement('tr', {
-        className: part.is_deleted ? 'deleted-part' : '',
-        dataset: { id: part.id }
+        className: rowClasses.join(' '),
+        dataset: { 
+          id: part.id,
+          groupId: groupOptions.groupId || ''
+        }
       });
+      
+      // Apply group color to row border if applicable
+      if (groupOptions.isGrouped && groupOptions.groupColor) {
+        row.style.borderLeftColor = groupOptions.groupColor;
+      }
       
       // ID no longer displayed, but we'll keep it in the row data attribute
       
@@ -499,6 +806,9 @@ window.PartsList = (function() {
       
       // Add row to table body
       tbody.appendChild(row);
+      
+      // Return the row for potential use in grouping logic
+      return row;
     },
     
     /**
@@ -508,6 +818,7 @@ window.PartsList = (function() {
       const display = document.getElementById('active-filters-display');
       const activeFilters = [];
       
+      // Filters
       if (currentFilters.type && currentFilters.type !== 'all') {
         activeFilters.push(`Type: ${currentFilters.type}`);
       }
@@ -519,6 +830,19 @@ window.PartsList = (function() {
       if (currentFilters.search && currentFilters.search.trim() !== '') {
         activeFilters.push(`Search: "${currentFilters.search}"`);
       }
+      
+      // Grouping info
+      if (currentGrouping !== 'none') {
+        const groupCapitalized = currentGrouping.charAt(0).toUpperCase() + currentGrouping.slice(1);
+        activeFilters.push(`Grouped by: ${groupCapitalized}`);
+      }
+      
+      // Sorting info
+      const sortCapitalized = currentSort.column.replace(/_/g, ' ').split(' ').map(
+        word => word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      
+      activeFilters.push(`Sorted by: ${sortCapitalized} (${currentSort.direction === 'asc' ? 'ascending' : 'descending'})`);
       
       if (activeFilters.length > 0) {
         display.textContent = activeFilters.join(' | ');

@@ -3,6 +3,10 @@
  * 
  * This file adds supplementary event handlers and functionality that isn't
  * covered by the core app logic in main.js and component files.
+ * 
+ * Note: The rigs and parts bin tabs are now integrated into the main parts table
+ * using the grouping functionality. We'll keep their tab buttons for now but
+ * they'll just switch to the appropriate grouping.
  */
 
 // IIFE to avoid global scope pollution
@@ -27,6 +31,53 @@
    * Set up application-wide event listeners
    */
   function setupEventListeners() {
+    // Setup tab switching that also updates grouping
+    const tabButtons = document.querySelectorAll('.tab-button');
+    if (tabButtons && window.PartsList) {
+      tabButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+          // First handle the normal tab switching
+          const tabId = button.getAttribute('data-tab');
+          
+          // Toggle active class for tab buttons
+          document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          button.classList.add('active');
+          
+          // Toggle active class for tab content
+          document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+          });
+          document.getElementById(tabId).classList.add('active');
+          
+          // Now also update the grouping based on which tab was selected
+          const groupBySelect = document.getElementById('group-by');
+          if (groupBySelect) {
+            let newGrouping = 'none';
+            
+            // Set grouping based on tab
+            if (tabId === 'rigs-tab') {
+              newGrouping = 'rig';
+            } else if (tabId === 'parts-bin-tab') {
+              // For parts bin, filter to bin status instead of grouping
+              const statusFilter = document.getElementById('filter-status');
+              if (statusFilter) {
+                statusFilter.value = 'bin';
+              }
+            }
+            
+            // Update the group-by dropdown
+            groupBySelect.value = newGrouping;
+            
+            // Update the actual grouping and refresh
+            window.PartsList.setGrouping(newGrouping);
+            window.PartsList.refresh();
+          }
+        });
+      });
+    }
+    
     // Setup add part button (if not handled in PartController)
     const addPartBtn = document.getElementById('add-part-btn');
     if (addPartBtn) {
