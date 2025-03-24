@@ -169,15 +169,14 @@
       text-overflow: ellipsis;
     }
     
-    /* Set column widths */
-    #parts-table th:nth-child(1) { width: 4%; } /* ID */
-    #parts-table th:nth-child(2) { width: 12%; } /* Brand */
-    #parts-table th:nth-child(3) { width: 18%; } /* Model */
-    #parts-table th:nth-child(4) { width: 10%; } /* Type */
-    #parts-table th:nth-child(5) { width: 10%; } /* Acquired */
-    #parts-table th:nth-child(6) { width: 12%; } /* Status */
-    #parts-table th:nth-child(7) { width: 17%; } /* Notes */
-    #parts-table th:nth-child(8) { width: 17%; } /* Actions */
+    /* Set column widths - optimized */
+    #parts-table th.type-col { width: 40px; min-width: 40px; max-width: 40px; } /* Type icon - fixed width */
+    #parts-table th.brand-col { width: auto; max-width: 12%; } /* Brand - adaptive width */
+    #parts-table th.model-col { width: 20%; } /* Model */
+    #parts-table th.acquired-col { width: 8%; } /* Acquired */
+    #parts-table th.status-col { width: 15%; } /* Status */
+    #parts-table th.notes-col { width: 25%; } /* Notes */
+    #parts-table th.actions-col { width: 40px; min-width: 40px; max-width: 40px; } /* Actions - fixed width for dropdown */
     
     th {
       background-color: rgba(58, 123, 213, 0.05);
@@ -601,6 +600,321 @@
       text-align: right;
     }
     
+    /* Compact Header Bar Styles */
+    .app-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      margin-bottom: 12px;
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .app-title-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .compact-title {
+      font-size: 1.4rem;
+      margin: 0;
+      padding: 0;
+      border: none;
+      white-space: nowrap;
+    }
+    
+    .db-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .compact-file-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--neutral-color);
+      background-color: rgba(113, 128, 150, 0.1);
+      padding: 4px 10px;
+      border-radius: var(--radius);
+    }
+    
+    .compact-control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background-color: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+    
+    .compact-tabs {
+      display: flex;
+      margin: 0;
+      padding: 0;
+      border: none;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .compact-tabs .tab-button {
+      padding: 6px 12px;
+      font-size: 0.9rem;
+    }
+    
+    .compact-filter-section {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex-grow: 1;
+      justify-content: flex-end;
+    }
+    
+    .compact-select, .compact-search {
+      padding: 5px 8px;
+      font-size: 0.85rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-color);
+      max-width: 120px;
+    }
+    
+    .compact-search {
+      max-width: 180px;
+    }
+    
+    .compact-btn {
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      height: 30px;
+      min-width: auto;
+      white-space: nowrap;
+    }
+    
+    .add-btn {
+      background-color: var(--success-color);
+      font-weight: bold;
+      padding: 5px 10px;
+    }
+    
+    /* Override active filters display to be more compact */
+    .active-filters-display {
+      font-size: 0.8rem;
+      width: 100%;
+      border-top: 1px solid var(--border-color);
+      padding-top: 5px;
+      margin-top: 5px;
+    }
+    
+    /* Part type icons */
+    .part-type-icon {
+      display: block;
+      text-align: center;
+      width: 24px;
+      height: 24px;
+      margin: 0 auto;
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.85;
+    }
+
+    /* Define a CSS variable for the SVG color filter */
+    :root {
+      --svg-filter-color: invert(50%) sepia(12%) saturate(1352%) hue-rotate(166deg) brightness(89%) contrast(87%);
+    }
+    
+    /* Special styling for SVG icons to match PNG colors */
+    .svg-icon {
+      filter: var(--svg-filter-color);
+    }
+    
+    /* Apply different colors in dark mode */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --svg-filter-color: invert(80%) sepia(11%) saturate(368%) hue-rotate(166deg) brightness(90%) contrast(87%);
+      }
+    }
+    
+    /* Hide text for type column but keep for accessibility */
+    .type-text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    
+    /* For icon hover effect */
+    .part-type-icon:hover {
+      opacity: 1;
+      transform: scale(1.1);
+      transition: all 0.2s ease;
+    }
+    
+    /* Dropdown menu for actions */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    /* Fix for table cell overflow constraint */
+    td .dropdown {
+      position: static;
+    }
+    
+    td .dropdown .dropdown-menu {
+      position: fixed;
+    }
+    
+    .dropdown-trigger {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      text-align: center;
+      font-size: 16px;
+      line-height: 1;
+      color: var(--neutral-color);
+    }
+    
+    .dropdown-trigger:hover {
+      background-color: rgba(113, 128, 150, 0.1);
+      color: var(--text-color);
+    }
+    
+    .dropdown-menu {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 5px);
+      background-color: var(--card-bg);
+      min-width: 180px;
+      border-radius: var(--radius);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      z-index: 100; /* Higher z-index to ensure it's above other elements */
+      overflow: visible;
+      display: none;
+      border: 1px solid var(--border-color);
+    }
+    
+    .dropdown.active .dropdown-menu {
+      display: block;
+    }
+    
+    .menu-header {
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--neutral-color);
+      background-color: rgba(113, 128, 150, 0.05);
+    }
+    
+    .admin-header {
+      color: var(--danger-color);
+      opacity: 0.7;
+    }
+    
+    .menu-divider {
+      margin: 3px 0;
+      border: 0;
+      border-top: 1px solid var(--border-color);
+      opacity: 0.5;
+    }
+    
+    .menu-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      background: none;
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text-color);
+    }
+    
+    .menu-item:hover {
+      background-color: rgba(113, 128, 150, 0.1);
+    }
+    
+    .menu-icon {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      margin-right: 8px;
+      filter: grayscale(1) opacity(0.8);
+      font-size: 1rem;
+    }
+    
+    .menu-label {
+      flex: 1;
+    }
+    
+    /* Action-specific styles */
+    .edit-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    .timeline-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    .connect-action:hover .menu-icon,
+    .disconnect-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    .rig-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    .dispose-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    .admin-action {
+      color: var(--danger-color);
+      opacity: 0.75;
+    }
+    
+    .admin-action:hover {
+      opacity: 1;
+      background-color: rgba(229, 62, 62, 0.1);
+    }
+    
+    .admin-action:hover .menu-icon {
+      filter: grayscale(0);
+    }
+    
+    /* Model name link styling */
+    .model-link {
+      color: var(--text-color);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--neutral-color);
+      padding-bottom: 1px;
+      transition: all 0.2s ease;
+    }
+    
+    .model-link:hover {
+      color: var(--primary-color);
+      border-bottom: 1px solid var(--primary-color);
+    }
+    
     /* Part timeline view */
     #part-timeline-view {
       padding: 24px;
@@ -743,6 +1057,85 @@
     /* Improve dropdown menu appearance */
     select {
       appearance: auto; /* Use native dropdown appearance for better visibility */
+    }
+    
+    /* Status badge styling */
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    .status-active {
+      background-color: rgba(56, 178, 172, 0.2);
+      color: var(--success-color);
+      border: 1px solid var(--success-color);
+    }
+    
+    .status-bin {
+      background-color: rgba(113, 128, 150, 0.2);
+      color: var(--neutral-color);
+      border: 1px solid var(--neutral-color);
+    }
+    
+    .status-deleted {
+      background-color: rgba(229, 62, 62, 0.2);
+      color: var(--danger-color);
+      border: 1px solid var(--danger-color);
+    }
+    
+    /* Rig pill styling */
+    .rig-pill {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      max-width: 120px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .rig-pill-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    /* Make rig pills stand out better in table */
+    td .rig-pill {
+      margin-top: 4px;
+      display: inline-flex;
+    }
+    
+    /* Ensure text has good contrast against background color */
+    .rig-pill-text {
+      color: rgba(0, 0, 0, 0.8);
+      font-weight: 500;
+    }
+    
+    /* Dark mode support for rig pills */
+    @media (prefers-color-scheme: dark) {
+      .rig-pill {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      
+      .rig-pill-text {
+        color: rgba(0, 0, 0, 0.85);
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+    }
+    
+    .rig-name {
+      margin-left: 4px;
+      font-weight: 600;
+      color: var(--primary-color);
     }
     
     /* Dark mode support - automatically applies if user prefers dark mode */
@@ -971,118 +1364,85 @@
   </style>
 </head>
 <body>
-  <h1>PC History Tracker</h1>
+  <!-- Toast notification container -->
+  <div id="toast-container" class="toast-container"></div>
   
   <div id="browser-warning" class="browser-warning hidden">
     Your browser does not support the File System Access API. Please use Chrome or Edge for the best experience with auto-saving.
   </div>
-  
-  <div class="actions">
-    <button id="open-db">Open Database</button>
-    <button id="create-db">Create New Database</button>
-  </div>
-  
-  <div id="file-info" class="file-info hidden">
-    <div>
-      Currently editing: <span id="current-file">No file open</span>
-    </div>
-    <div class="save-status saved" id="save-status">Saved</div>
-  </div>
 
-  <!-- Toast notification container -->
-  <div id="toast-container" class="toast-container"></div>
+  <!-- Compact App Header Bar -->
+  <div class="app-header-bar">
+    <div class="app-title-section">
+      <h1 class="compact-title">PC History Tracker</h1>
+      <div class="db-buttons">
+        <button id="open-db" class="small-btn">Open DB</button>
+        <button id="create-db" class="small-btn">New DB</button>
+      </div>
+    </div>
+    
+    <div id="file-info" class="compact-file-info hidden">
+      <span id="current-file">No file open</span>
+      <span class="save-status saved" id="save-status">✓</span>
+    </div>
+  </div>
 
   <div id="app-container" class="hidden">
-    <div class="tabs-container">
-      <div class="tab-nav">
+    <!-- Compact Tabs with Filters Bar -->
+    <div class="compact-control-bar">
+      <div class="tab-nav compact-tabs">
         <button class="tab-button active" data-tab="parts-tab">Parts</button>
         <button class="tab-button" data-tab="rigs-tab">Rigs</button>
         <button class="tab-button" data-tab="parts-bin-tab">Parts Bin</button>
       </div>
       
-      <!-- Parts Tab -->
-      <div id="parts-tab" class="tab-content active">
-        <div id="edit-form" class="edit-form hidden">
-          <h2>Edit Part</h2>
-          <form id="edit-part-form">
-            <input type="hidden" id="edit-part-id">
-            <div class="form-group">
-              <label for="edit-part-brand">Brand:</label>
-              <input type="text" id="edit-part-brand" list="brand-suggestions" autocomplete="off" required>
-            </div>
-            <div class="form-group">
-              <label for="edit-part-model">Model:</label>
-              <input type="text" id="edit-part-model" required>
-            </div>
-            <div class="form-group">
-              <label for="edit-part-type">Type:</label>
-              <select id="edit-part-type">
-                <option value="motherboard">Motherboard</option>
-                <option value="cpu">CPU</option>
-                <option value="gpu">GPU</option>
-                <option value="ram">RAM</option>
-                <option value="storage">Storage</option>
-                <option value="psu">Power Supply</option>
-                <option value="case">Case</option>
-                <option value="cooling">Cooling</option>
-                <option value="monitor">Monitor</option>
-                <option value="peripheral">Peripheral</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="edit-part-acquisition-date">Acquisition Date:</label>
-              <div class="date-input-group">
-                <select id="edit-part-acquisition-year" required>
-                  <option value="">Year</option>
-                  <!-- Years will be populated by JavaScript -->
-                </select>
-                <select id="edit-part-acquisition-month">
-                  <option value="">Month (optional)</option>
-                  <option value="1">January</option>
-                  <option value="2">February</option>
-                  <option value="3">March</option>
-                  <option value="4">April</option>
-                  <option value="5">May</option>
-                  <option value="6">June</option>
-                  <option value="7">July</option>
-                  <option value="8">August</option>
-                  <option value="9">September</option>
-                  <option value="10">October</option>
-                  <option value="11">November</option>
-                  <option value="12">December</option>
-                </select>
-                <select id="edit-part-acquisition-day">
-                  <option value="">Day (optional)</option>
-                  <!-- Days will be populated by JavaScript -->
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="edit-part-notes">Notes:</label>
-              <textarea id="edit-part-notes" rows="4"></textarea>
-            </div>
-            <div>
-              <button type="submit">Save Changes</button>
-              <button type="button" id="cancel-edit">Cancel</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="action-header">
-          <h2>Parts List</h2>
-          <button id="add-part-btn" class="primary-button">+ Add New Part</button>
-        </div>
-        
-        <!-- Parts Filter and Sort Bar -->
-        <div class="filter-sort-bar">
-          <div class="filter-header">
-            <h3>Filters & Sorting</h3>
-            <div class="active-filters-display" id="active-filters-display">No active filters</div>
+      <div class="compact-filter-section">
+        <select id="filter-type" class="compact-select">
+          <option value="all">All Types</option>
+          <option value="motherboard">Motherboard</option>
+          <option value="cpu">CPU</option>
+          <option value="gpu">GPU</option>
+          <option value="ram">RAM</option>
+          <option value="storage">Storage</option>
+          <option value="psu">Power Supply</option>
+          <option value="case">Case</option>
+          <option value="cooling">Cooling</option>
+          <option value="monitor">Monitor</option>
+          <option value="peripheral">Peripheral</option>
+          <option value="other">Other</option>
+        </select>
+        <select id="filter-status" class="compact-select">
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="bin">In Bin</option>
+          <option value="deleted">Deleted</option>
+        </select>
+        <input type="text" id="filter-search" class="compact-search" placeholder="Search...">
+        <button id="apply-filters" class="compact-btn">Filter</button>
+        <button id="clear-filters" class="compact-btn">Clear</button>
+        <button id="add-part-btn" class="compact-btn add-btn">+</button>
+      </div>
+      
+      <div class="active-filters-display" id="active-filters-display">No filters</div>
+    </div>
+      
+    <!-- Parts Tab -->
+    <div id="parts-tab" class="tab-content active">
+      <div id="edit-form" class="edit-form hidden">
+        <h2>Edit Part</h2>
+        <form id="edit-part-form">
+          <input type="hidden" id="edit-part-id">
+          <div class="form-group">
+            <label for="edit-part-brand">Brand:</label>
+            <input type="text" id="edit-part-brand" list="brand-suggestions" autocomplete="off" required>
           </div>
-          <div class="filter-controls">
-            <select id="filter-type">
-              <option value="all">All Types</option>
+          <div class="form-group">
+            <label for="edit-part-model">Model:</label>
+            <input type="text" id="edit-part-model" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-part-type">Type:</label>
+            <select id="edit-part-type">
               <option value="motherboard">Motherboard</option>
               <option value="cpu">CPU</option>
               <option value="gpu">GPU</option>
@@ -1095,30 +1455,57 @@
               <option value="peripheral">Peripheral</option>
               <option value="other">Other</option>
             </select>
-            <select id="filter-status">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="bin">In Bin</option>
-              <option value="deleted">Deleted</option>
-            </select>
-            <input type="text" id="filter-search" placeholder="Search...">
-            <button id="apply-filters" class="filter-button">Apply Filters</button>
-            <button id="clear-filters" class="filter-button">Clear</button>
           </div>
-        </div>
+          <div class="form-group">
+            <label for="edit-part-acquisition-date">Acquisition Date:</label>
+            <div class="date-input-group">
+              <select id="edit-part-acquisition-year" required>
+                <option value="">Year</option>
+                <!-- Years will be populated by JavaScript -->
+              </select>
+              <select id="edit-part-acquisition-month">
+                <option value="">Month (optional)</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+              <select id="edit-part-acquisition-day">
+                <option value="">Day (optional)</option>
+                <!-- Days will be populated by JavaScript -->
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-part-notes">Notes:</label>
+            <textarea id="edit-part-notes" rows="4"></textarea>
+          </div>
+          <div>
+            <button type="submit">Save Changes</button>
+            <button type="button" id="cancel-edit">Cancel</button>
+          </div>
+        </form>
+      </div>
         
         <div class="table-container">
           <table id="parts-table">
             <thead>
               <tr>
-                <th data-sort="id">ID <span class="sort-indicator"></span></th>
-                <th data-sort="brand">Brand <span class="sort-indicator"></span></th>
-                <th data-sort="model">Model <span class="sort-indicator"></span></th>
-                <th data-sort="type">Type <span class="sort-indicator"></span></th>
-                <th data-sort="acquisition_date">Acquired <span class="sort-indicator"></span></th>
-                <th data-sort="status">Status <span class="sort-indicator"></span></th>
-                <th>Notes</th>
-                <th>Actions</th>
+                <th class="actions-col"></th>
+                <th data-sort="type" class="type-col"><span class="sort-indicator"></span></th>
+                <th data-sort="brand" class="brand-col">Brand <span class="sort-indicator"></span></th>
+                <th data-sort="model" class="model-col">Model <span class="sort-indicator"></span></th>
+                <th data-sort="acquisition_date" class="acquired-col">Acquired <span class="sort-indicator"></span></th>
+                <th data-sort="status" class="status-col">Status <span class="sort-indicator"></span></th>
+                <th class="notes-col">Notes</th>
               </tr>
             </thead>
             <tbody>

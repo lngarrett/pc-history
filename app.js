@@ -1,14 +1,13 @@
 /**
- * PC History Tracker - Main Application
+ * PC History Tracker - Additional Event Handlers
  * 
- * This is the main entry point for the application.
- * It initializes the app and coordinates between modules.
+ * This file adds supplementary event handlers and functionality that isn't
+ * covered by the core app logic in main.js and component files.
  */
 
 // IIFE to avoid global scope pollution
 (function() {
   // Wait for window.App to be available then set up custom event handlers
-  // main.js handles the basic initialization
   const setupCustomHandlers = () => {
     console.log('Setting up additional event handlers...');
     
@@ -28,7 +27,7 @@
    * Set up application-wide event listeners
    */
   function setupEventListeners() {
-    // Setup part actions
+    // Setup add part button (if not handled in PartController)
     const addPartBtn = document.getElementById('add-part-btn');
     if (addPartBtn) {
       addPartBtn.addEventListener('click', () => {
@@ -36,16 +35,13 @@
       });
     }
     
-    // Setup filter controls
-    setupFilterControls();
-    
     // Setup part actions menu (using event delegation)
     const partsTableBody = document.getElementById('parts-table-body');
     if (partsTableBody) {
       partsTableBody.addEventListener('click', handlePartAction);
     }
     
-    // Setup parts export/import
+    // Setup parts export/import buttons
     const exportCsvBtn = document.getElementById('export-csv');
     if (exportCsvBtn) {
       exportCsvBtn.addEventListener('click', exportPartsCSV);
@@ -56,8 +52,6 @@
       importCsvBtn.addEventListener('click', importPartsCSV);
     }
     
-    // Note: Save/open DB buttons are already handled in main.js
-    
     // Confirm before closing with unsaved changes
     window.addEventListener('beforeunload', (event) => {
       if (window.App && window.App.hasUnsavedChanges) {
@@ -66,91 +60,6 @@
         return '';
       }
     });
-  }
-  
-  /**
-   * Setup filter controls for parts list
-   */
-  function setupFilterControls() {
-    // Type filter
-    const typeFilter = document.getElementById('filter-type');
-    if (typeFilter) {
-      typeFilter.addEventListener('change', () => {
-        window.PartsList.refresh();
-      });
-    }
-    
-    // Status filter
-    const statusFilter = document.getElementById('filter-status');
-    if (statusFilter) {
-      statusFilter.addEventListener('change', () => {
-        window.PartsList.refresh();
-      });
-    }
-    
-    // Search input
-    const searchInput = document.getElementById('filter-search');
-    if (searchInput) {
-      let searchTimeout;
-      searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-          window.PartsList.refresh();
-        }, 300);
-      });
-    }
-    
-    // Apply filters button
-    const applyFiltersBtn = document.getElementById('apply-filters');
-    if (applyFiltersBtn) {
-      applyFiltersBtn.addEventListener('click', () => {
-        window.PartsList.refresh();
-      });
-    }
-    
-    // Clear filters button
-    const clearFiltersBtn = document.getElementById('clear-filters');
-    if (clearFiltersBtn && typeFilter && statusFilter && searchInput) {
-      clearFiltersBtn.addEventListener('click', () => {
-        typeFilter.value = 'all';
-        statusFilter.value = 'all';
-        searchInput.value = '';
-        window.PartsList.refresh();
-      });
-    }
-    
-    // Sort column headers (using event delegation)
-    const tableHeader = document.querySelector('#parts-table thead');
-    if (tableHeader) {
-      tableHeader.addEventListener('click', (event) => {
-        const target = event.target.closest('th[data-sort]');
-        if (!target) return;
-        
-        const column = target.getAttribute('data-sort');
-        // Use classList to check for current direction
-        const currentDirection = target.classList.contains('sort-desc') ? 'desc' : 'asc';
-        const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
-        
-        // Update sort indicators - remove previous sort classes
-        document.querySelectorAll('th[data-sort]').forEach(th => {
-          th.classList.remove('sort-asc', 'sort-desc');
-          
-          // Make sure there's a sort indicator span
-          if (!th.querySelector('.sort-indicator')) {
-            const indicatorSpan = document.createElement('span');
-            indicatorSpan.className = 'sort-indicator';
-            th.appendChild(indicatorSpan);
-          }
-        });
-        
-        // Set the appropriate sort class based on direction
-        target.classList.add(newDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-        
-        // Refresh parts with new sort
-        window.PartsList.setSort(column, newDirection);
-        window.PartsList.refresh();
-      });
-    }
   }
   
   /**

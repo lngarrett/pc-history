@@ -135,7 +135,18 @@ window.PartModel = (function() {
             WHEN p.type = 'motherboard' THEN (SELECT COUNT(*) FROM connections c WHERE c.motherboard_id = p.id AND c.disconnected_at IS NULL)
             ELSE (SELECT COUNT(*) FROM connections c WHERE c.part_id = p.id AND c.disconnected_at IS NULL)
           END as active_connections,
-          (SELECT name FROM rig_identities ri WHERE ri.motherboard_id = p.id AND ri.active_until IS NULL ORDER BY ri.active_from DESC LIMIT 1) as rig_name
+          CASE
+            WHEN p.type = 'motherboard' THEN (SELECT name FROM rig_identities ri WHERE ri.motherboard_id = p.id AND ri.active_until IS NULL ORDER BY ri.active_from DESC LIMIT 1)
+            ELSE (
+              SELECT ri.name 
+              FROM rig_identities ri 
+              JOIN connections c ON c.motherboard_id = ri.motherboard_id 
+              WHERE c.part_id = p.id 
+              AND c.disconnected_at IS NULL 
+              AND ri.active_until IS NULL 
+              ORDER BY ri.active_from DESC LIMIT 1
+            )
+          END as rig_name
         FROM parts p
         ${whereClause}
         ORDER BY ${orderByClause}
