@@ -247,17 +247,20 @@ window.PartController = (function() {
         throw new Error('Part not found');
       }
       
+      // Log part data to help with debugging
+      console.log('Editing part:', part);
+      
       // Create form content
       const content = window.DOMUtils.createElement('div', { className: 'part-form' });
       
-      // Brand input
+      // Brand input - with explicit prefix
       content.appendChild(window.DOMUtils.createElement('div', { className: 'form-group' }, [
-        window.DOMUtils.createElement('label', { for: 'part-brand' }, 'Brand:'),
+        window.DOMUtils.createElement('label', { for: 'edit-modal-brand' }, 'Brand:'),
         window.DOMUtils.createElement('input', { 
           type: 'text', 
-          id: 'part-brand', 
+          id: 'edit-modal-brand',  // Use more specific ID to avoid conflicts 
           className: 'form-control', 
-          value: part.brand,
+          value: part.brand || '',
           required: true,
           list: 'brand-datalist'
         })
@@ -277,19 +280,19 @@ window.PartController = (function() {
       
       // Model input
       content.appendChild(window.DOMUtils.createElement('div', { className: 'form-group' }, [
-        window.DOMUtils.createElement('label', { for: 'part-model' }, 'Model:'),
+        window.DOMUtils.createElement('label', { for: 'edit-modal-model' }, 'Model:'),
         window.DOMUtils.createElement('input', { 
           type: 'text', 
-          id: 'part-model', 
+          id: 'edit-modal-model', 
           className: 'form-control', 
-          value: part.model,
+          value: part.model || '',
           required: true 
         })
       ]));
       
       // Type select
       const typeSelect = window.DOMUtils.createElement('select', { 
-        id: 'part-type', 
+        id: 'edit-modal-type', 
         className: 'form-control', 
         required: true 
       });
@@ -318,7 +321,7 @@ window.PartController = (function() {
       });
       
       content.appendChild(window.DOMUtils.createElement('div', { className: 'form-group' }, [
-        window.DOMUtils.createElement('label', { for: 'part-type' }, 'Type:'),
+        window.DOMUtils.createElement('label', { for: 'edit-modal-type' }, 'Type:'),
         typeSelect
       ]));
       
@@ -328,10 +331,12 @@ window.PartController = (function() {
       
       const dateControls = window.DOMUtils.createElement('div', { className: 'date-input-group' });
       
-      // Parse date parts
+      // Parse date parts and log for debugging
       let year = null;
       let month = null;
       let day = null;
+      
+      console.log('Part acquisition date:', part.acquisition_date, 'Precision:', part.date_precision);
       
       if (part.acquisition_date) {
         const date = new Date(part.acquisition_date);
@@ -346,9 +351,22 @@ window.PartController = (function() {
         }
       }
       
+      console.log('Parsed date parts:', { year, month, day });
+      
       // Year select
       const yearSelect = window.DOMUtils.createElement('select', { id: 'part-year' });
       yearSelect.appendChild(window.DOMUtils.createElement('option', { value: '' }, 'Year (optional)'));
+      
+      // Handle the year select correctly
+      // If we have a year, we need to populate from 1980 to current year first
+      const currentYear = new Date().getFullYear();
+      for (let y = currentYear; y >= 1980; y--) {
+        const option = window.DOMUtils.createElement('option', { value: y }, y.toString());
+        if (y === year) {
+          option.selected = true;
+        }
+        yearSelect.appendChild(option);
+      }
       
       // Month select
       const monthSelect = window.DOMUtils.createElement('select', { id: 'part-month' });
@@ -367,12 +385,16 @@ window.PartController = (function() {
       const daySelect = window.DOMUtils.createElement('select', { id: 'part-day' });
       daySelect.appendChild(window.DOMUtils.createElement('option', { value: '' }, 'Day (optional)'));
       
-      // Populate year select
-      window.DateUtils.populateYearSelect(yearSelect, year);
-      
-      // Populate days if month is set
-      if (month) {
-        window.DateUtils.populateDaySelect(daySelect, month, year, day);
+      // If we have month and year, populate days
+      if (month && year) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const option = window.DOMUtils.createElement('option', { value: d }, d.toString());
+          if (d === day) {
+            option.selected = true;
+          }
+          daySelect.appendChild(option);
+        }
       }
       
       // Set disabled state based on values
@@ -413,9 +435,9 @@ window.PartController = (function() {
       
       // Notes
       content.appendChild(window.DOMUtils.createElement('div', { className: 'form-group' }, [
-        window.DOMUtils.createElement('label', { for: 'part-notes' }, 'Notes:'),
+        window.DOMUtils.createElement('label', { for: 'edit-modal-notes' }, 'Notes:'),
         window.DOMUtils.createElement('textarea', { 
-          id: 'part-notes', 
+          id: 'edit-modal-notes', 
           rows: 3, 
           className: 'form-control'
         }, part.notes || '')
@@ -423,26 +445,40 @@ window.PartController = (function() {
       
       // Submit button
       const submitButton = window.DOMUtils.createButton('Update Part', 'primary-button', () => {
-        const brand = document.getElementById('part-brand').value.trim();
-        const model = document.getElementById('part-model').value.trim();
-        const type = document.getElementById('part-type').value;
+        const brand = document.getElementById('edit-modal-brand').value.trim();
+        const model = document.getElementById('edit-modal-model').value.trim();
+        const type = document.getElementById('edit-modal-type').value;
         const selectedYear = yearSelect.value ? parseInt(yearSelect.value) : null;
         const selectedMonth = monthSelect.value ? parseInt(monthSelect.value) : null;
         const selectedDay = daySelect.value ? parseInt(daySelect.value) : null;
-        const notes = document.getElementById('part-notes').value.trim();
+        const notes = document.getElementById('edit-modal-notes').value.trim();
+        
+        // Log values for debugging
+        console.log('Edit form values:', {
+          brand,
+          model,
+          type,
+          year: selectedYear,
+          month: selectedMonth,
+          day: selectedDay,
+          notes
+        });
         
         // Validate
         if (!brand) {
+          console.error('Brand validation failed. Input value:', brand);
           alert('Please enter a brand');
           return;
         }
         
         if (!model) {
+          console.error('Model validation failed. Input value:', model);
           alert('Please enter a model');
           return;
         }
         
         if (!type) {
+          console.error('Type validation failed. Input value:', type);
           alert('Please select a type');
           return;
         }

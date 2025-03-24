@@ -195,23 +195,21 @@ window.ConnectionModel = (function() {
      * Connect a part to a motherboard
      * @param {number} partId - Part ID
      * @param {number} motherboardId - Motherboard ID
-     * @param {Object} dateInfo - Connection date information
+     * @param {Object} dateInfo - Connection date information (if not provided or missing year, will use part acquisition date)
      * @param {string} notes - Connection notes
+     * @param {boolean} keepExistingParts - If true, existing parts of the same type will not be disconnected
      * @returns {number} New connection ID
      */
-    connectPart: function(partId, motherboardId, dateInfo, notes = '') {
+    connectPart: function(partId, motherboardId, dateInfo, notes = '', keepExistingParts = false) {
       const db = DatabaseService.getDatabase();
       if (!db) throw new Error('No database is open');
       
-      const { year, month, day } = dateInfo;
+      // Extract date info if provided
+      let { year, month, day } = dateInfo || {};
       
       // Validate parameters
       if (!partId || !motherboardId) {
         throw new Error('Part ID and motherboard ID are required');
-      }
-      
-      if (!year) {
-        throw new Error('Connection year is required');
       }
       
       try {
@@ -219,6 +217,52 @@ window.ConnectionModel = (function() {
         const activeConnections = this.getActiveConnectionsForPart(partId);
         if (activeConnections.length > 0) {
           throw new Error('Part is already connected to a motherboard');
+        }
+        
+        // Check that this part isn't a motherboard
+        const partTypeQuery = `SELECT type FROM parts WHERE id = ${partId}`;
+        const partTypeResult = db.exec(partTypeQuery);
+        
+        if (partTypeResult.length > 0 && partTypeResult[0].values.length > 0) {
+          const partType = partTypeResult[0].values[0][0];
+          if (partType === 'motherboard') {
+            throw new Error('Cannot connect a motherboard to another motherboard');
+          }
+        } else {
+          throw new Error('Part not found');
+        }
+        
+        // If no year provided, try to use the part's acquisition date
+        if (!year) {
+          // Get the part's acquisition date
+          const partQuery = `SELECT acquisition_date, date_precision FROM parts WHERE id = ${partId}`;
+          const partResult = db.exec(partQuery);
+          
+          if (partResult.length > 0 && partResult[0].values.length > 0) {
+            const acquisitionDate = partResult[0].values[0][0];
+            const acquisitionPrecision = partResult[0].values[0][1];
+            
+            if (acquisitionDate) {
+              console.log(`Using acquisition date ${acquisitionDate} for connection`);
+              
+              // Parse the acquisition date
+              const dateParts = acquisitionDate.split('-');
+              year = parseInt(dateParts[0]);
+              
+              // Only use month and day if we have the right precision
+              if (dateParts.length > 1 && acquisitionPrecision !== 'year') {
+                month = parseInt(dateParts[1]);
+              }
+              
+              if (dateParts.length > 2 && acquisitionPrecision === 'day') {
+                day = parseInt(dateParts[2]);
+              }
+            } else {
+              throw new Error('Connection year is required (no acquisition date found)');
+            }
+          } else {
+            throw new Error('Connection year is required (part not found)');
+          }
         }
         
         // Create the connection date
@@ -239,11 +283,74 @@ window.ConnectionModel = (function() {
           notes || ''
         ];
         
-        db.run(query, params);
+        // Begin a transaction to ensure all operations are atomic
+        db.run('BEGIN TRANSACTION');
         
-        // Get the last inserted ID
-        const result = db.exec('SELECT last_insert_rowid()');
-        return result[0].values[0][0];
+        try {
+          // If we need to disconnect existing parts of the same type
+          if (!keepExistingParts) {
+            // Get the part type
+            const partTypeQuery = `SELECT type FROM parts WHERE id = ${partId}`;
+            const partTypeResult = db.exec(partTypeQuery);
+            
+            if (partTypeResult.length > 0 && partTypeResult[0].values.length > 0) {
+              const partType = partTypeResult[0].values[0][0];
+              
+              // Find active connections of the same type
+              const sameTypeQuery = `
+                SELECT c.id 
+                FROM connections c
+                JOIN parts p ON c.part_id = p.id
+                WHERE c.motherboard_id = ${motherboardId}
+                AND p.type = '${partType}'
+                AND c.disconnected_at IS NULL
+                AND c.part_id != ${partId}
+              `;
+              
+              const sameTypeResult = db.exec(sameTypeQuery);
+              
+              // Disconnect existing parts of the same type
+              if (sameTypeResult.length > 0 && sameTypeResult[0].values.length > 0) {
+                for (const row of sameTypeResult[0].values) {
+                  const connectionId = row[0];
+                  
+                  // Update the connection to disconnect it on the connection date
+                  const disconnectQuery = `
+                    UPDATE connections
+                    SET disconnected_at = ?,
+                        disconnected_precision = ?,
+                        notes = CASE WHEN notes IS NULL OR notes = '' THEN ? ELSE notes || '\n' || ? END
+                    WHERE id = ?
+                  `;
+                  
+                  const disconnectNotes = 'Automatically disconnected due to new part connection';
+                  
+                  db.run(disconnectQuery, [
+                    connectedAt,
+                    precision,
+                    disconnectNotes,
+                    disconnectNotes,
+                    connectionId
+                  ]);
+                }
+              }
+            }
+          }
+          
+          // Insert the new connection
+          db.run(query, params);
+          
+          // Commit the transaction
+          db.run('COMMIT');
+          
+          // Get the last inserted ID
+          const result = db.exec('SELECT last_insert_rowid()');
+          return result[0].values[0][0];
+        } catch (err) {
+          // Rollback on error
+          db.run('ROLLBACK');
+          throw err;
+        }
       } catch (err) {
         console.error(`Error connecting part ${partId} to motherboard ${motherboardId}:`, err);
         throw err;
@@ -328,10 +435,23 @@ window.ConnectionModel = (function() {
           throw new Error(`Part with ID ${partId} is not connected to any motherboard`);
         }
         
-        // Disconnect each active connection
-        activeConnections.forEach(connection => {
-          this.disconnectPart(connection.id, dateInfo, notes);
-        });
+        // Use a transaction to ensure all updates are atomic
+        db.run('BEGIN TRANSACTION');
+        
+        try {
+          // Disconnect each active connection
+          activeConnections.forEach(connection => {
+            this.disconnectPart(connection.id, dateInfo, notes);
+          });
+          
+          // Commit the transaction
+          db.run('COMMIT');
+        } catch (transactionErr) {
+          // Rollback on error
+          console.error("Error in disconnect transaction, rolling back:", transactionErr);
+          db.run('ROLLBACK');
+          throw transactionErr;
+        }
       } catch (err) {
         console.error(`Error disconnecting part ${partId}:`, err);
         throw err;

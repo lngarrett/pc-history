@@ -148,7 +148,19 @@ window.DatabaseService = (function() {
           active_until TEXT,
           active_until_precision TEXT DEFAULT 'day',
           notes TEXT,
-          FOREIGN KEY (motherboard_id) REFERENCES parts(id)
+          FOREIGN KEY (motherboard_id) REFERENCES parts(id) ON DELETE CASCADE
+        )
+      `);
+      
+      // Create rig_names table (simpler approach for naming rigs)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS rig_names (
+          id INTEGER PRIMARY KEY,
+          motherboard_id INTEGER NOT NULL,
+          start_date TEXT NOT NULL,
+          name TEXT NOT NULL,
+          notes TEXT,
+          FOREIGN KEY (motherboard_id) REFERENCES parts(id) ON DELETE CASCADE
         )
       `);
       

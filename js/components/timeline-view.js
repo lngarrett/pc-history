@@ -193,6 +193,11 @@ window.TimelineView = (function() {
                 if (window.TimelineEvent && typeof window.TimelineEvent.deleteTimelineEvent === 'function') {
                   window.TimelineEvent.deleteTimelineEvent(currentPartId, event.type, event.date);
                   
+                  // Mark changes as unsaved and save the database
+                  window.App.hasUnsavedChanges = true;
+                  window.App.updateSaveStatus();
+                  await window.App.saveDatabase();
+                  
                   // Refresh the timeline
                   this.showPartTimeline(currentPartId);
                   

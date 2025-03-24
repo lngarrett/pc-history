@@ -58,12 +58,32 @@
             
             // Set grouping based on tab
             if (tabId === 'rigs-tab') {
+              // For rigs tab, group by rig and filter to active parts
               newGrouping = 'rig';
+              
+              // Also update the status filter to show only active parts
+              const statusFilter = document.getElementById('filter-status');
+              if (statusFilter) {
+                statusFilter.value = 'active';
+              }
+              
+              // Refresh the rigs view as well
+              if (window.RigsView && typeof window.RigsView.refresh === 'function') {
+                window.RigsView.refresh();
+              }
             } else if (tabId === 'parts-bin-tab') {
-              // For parts bin, filter to bin status instead of grouping
+              // For parts bin, filter to bin status
               const statusFilter = document.getElementById('filter-status');
               if (statusFilter) {
                 statusFilter.value = 'bin';
+              }
+              
+              // No grouping needed for parts bin
+              newGrouping = 'none';
+            } else {
+              // Default parts tab - no filters
+              if (document.getElementById('clear-filters')) {
+                document.getElementById('clear-filters').click();
               }
             }
             

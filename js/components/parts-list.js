@@ -18,6 +18,9 @@ window.PartsList = (function() {
   
   let currentGrouping = 'none'; // 'none', 'rig', 'type', or 'status'
   
+  // Track selected parts for bulk actions
+  let selectedParts = new Set();
+  
   // Helper function to generate a color hash from the rig name
   const getColorFromRigName = (name) => {
     if (!name) return 'hsl(0, 0%, 75%)'; // Default gray
@@ -82,6 +85,9 @@ window.PartsList = (function() {
      * Initialize the parts list component
      */
     init: function() {
+      // Initialize bulk actions
+      this.initBulkActions();
+      
       // Initialize sort and group controls
       const sortBySelect = document.getElementById('sort-by');
       const sortDirectionBtn = document.getElementById('sort-direction');
@@ -193,6 +199,9 @@ window.PartsList = (function() {
      * @param {Object} filters - Filters to apply
      */
     refresh: function(sortColumn, sortDirection, filters) {
+      // Clear any existing selections
+      this.clearSelection();
+      
       // Update current sort if provided
       if (sortColumn) {
         currentSort.column = sortColumn;
@@ -265,9 +274,24 @@ window.PartsList = (function() {
         // Determine grouping value based on current grouping
         switch (currentGrouping) {
           case 'rig':
-            // For rig grouping, use the rig_name or special value for ungrouped parts
-            groupValue = part.rig_name || 'ungrouped';
-            groupDisplay = part.rig_name || 'Ungrouped Parts';
+            // For rig grouping, only include active parts in a rig
+            // Parts in inactive/historical rigs should not be grouped
+            if (part.status === 'active' && part.rig_name) {
+              groupValue = part.rig_name;
+              groupDisplay = part.rig_name;
+            } else {
+              // Different categories for non-rig parts
+              if (part.status === 'bin') {
+                groupValue = 'parts_bin';
+                groupDisplay = 'Parts Bin';
+              } else if (part.status === 'active') {
+                groupValue = 'ungrouped_active';
+                groupDisplay = 'Ungrouped Active Parts';
+              } else {
+                groupValue = 'disposed';
+                groupDisplay = 'Disposed Parts';
+              }
+            }
             break;
             
           case 'type':
@@ -644,8 +668,10 @@ window.PartsList = (function() {
       
       // Edit button
       const editItem = createMenuItem('⚙️', 'Edit', 'edit-action', () => {
-        if (window.PartModel && typeof window.PartModel.editPart === 'function') {
-          window.PartModel.editPart(part.id);
+        if (window.PartController && typeof window.PartController.showPartEditForm === 'function') {
+          window.PartController.showPartEditForm(part.id);
+        } else {
+          console.error('PartController.showPartEditForm is not available');
         }
       });
       dropdownMenu.appendChild(editItem);
@@ -795,7 +821,46 @@ window.PartsList = (function() {
       dropdown.appendChild(dropdownMenu);
       actionsCell.appendChild(dropdown);
       
-      // Add cells to row in the new order (actions first)
+      // Selection cell with checkbox
+      const selectCell = DOMUtils.createElement('td', { className: 'select-cell' });
+      const checkbox = DOMUtils.createElement('input', {
+        type: 'checkbox',
+        className: 'part-checkbox',
+        dataset: {
+          partId: part.id,
+          partStatus: part.status,
+          isConnected: part.active_connections > 0 ? 'true' : 'false',
+          partType: part.type
+        }
+      });
+      
+      // Add event listener for checkbox
+      checkbox.addEventListener('change', (e) => {
+        // Toggle selection
+        if (e.target.checked) {
+          // Add to selected set
+          selectedParts.add(part.id);
+          row.classList.add('selected');
+          
+          // If this is a motherboard, show a warning toast only when bulk connect button exists and is enabled
+          if (part.type === 'motherboard' && document.getElementById('bulk-connect-btn') && 
+              !document.getElementById('bulk-connect-btn').disabled) {
+            window.DOMUtils.showToast('Motherboards cannot be connected to other motherboards', 'warning');
+          }
+        } else {
+          // Remove from selected set
+          selectedParts.delete(part.id);
+          row.classList.remove('selected');
+        }
+        
+        // Update the bulk actions UI
+        this.updateBulkActionsUI();
+      });
+      
+      selectCell.appendChild(checkbox);
+      
+      // Add cells to row in the new order (select, actions, then other cells)
+      row.appendChild(selectCell);
       row.appendChild(actionsCell);
       row.appendChild(typeCell);
       row.appendChild(brandCell);
@@ -809,6 +874,191 @@ window.PartsList = (function() {
       
       // Return the row for potential use in grouping logic
       return row;
+    },
+    
+    /**
+     * Update the bulk actions UI based on selected parts
+     */
+    updateBulkActionsUI: function() {
+      const bulkActionsBar = document.getElementById('bulk-actions-bar');
+      const selectedCount = document.getElementById('selected-count');
+      const connectBtn = document.getElementById('bulk-connect-btn');
+      const disconnectBtn = document.getElementById('bulk-disconnect-btn');
+      
+      const count = selectedParts.size;
+      
+      // Show/hide bulk actions bar
+      if (count > 0) {
+        bulkActionsBar.classList.remove('hidden');
+        selectedCount.textContent = count;
+        
+        // Check if all selected parts can be connected (not connected yet, not deleted, and not motherboards)
+        const allCheckboxes = document.querySelectorAll('.part-checkbox:checked');
+        const canAllConnect = Array.from(allCheckboxes).every(cb => 
+          cb.dataset.isConnected === 'false' && 
+          cb.dataset.partStatus !== 'deleted' &&
+          cb.dataset.partType !== 'motherboard'
+        );
+        
+        // Check if all selected parts can be disconnected (are connected)
+        const canAllDisconnect = Array.from(allCheckboxes).every(cb => 
+          cb.dataset.isConnected === 'true'
+        );
+        
+        // Enable/disable buttons based on state
+        connectBtn.disabled = !canAllConnect;
+        disconnectBtn.disabled = !canAllDisconnect;
+      } else {
+        // Hide the bulk actions bar if no parts are selected
+        bulkActionsBar.classList.add('hidden');
+      }
+    },
+    
+    /**
+     * Initialize bulk actions
+     */
+    initBulkActions: function() {
+      // Cancel bulk selection
+      document.getElementById('bulk-cancel-btn').addEventListener('click', () => {
+        this.clearSelection();
+      });
+      
+      // Bulk connect
+      document.getElementById('bulk-connect-btn').addEventListener('click', () => {
+        if (selectedParts.size === 0) return;
+        
+        // Show a modal to select the motherboard and shared connection date
+        this.showBulkConnectForm(Array.from(selectedParts));
+      });
+      
+      // Bulk disconnect
+      document.getElementById('bulk-disconnect-btn').addEventListener('click', () => {
+        if (selectedParts.size === 0) return;
+        
+        // Show a modal to select the shared disconnection date
+        this.showBulkDisconnectForm(Array.from(selectedParts));
+      });
+      
+      // Bulk dispose
+      document.getElementById('bulk-dispose-btn').addEventListener('click', () => {
+        if (selectedParts.size === 0) return;
+        
+        // Show a modal to select the shared disposal date and reason
+        this.showBulkDisposeForm(Array.from(selectedParts));
+      });
+      
+      // Bulk delete (admin function)
+      document.getElementById('bulk-delete-btn').addEventListener('click', () => {
+        if (selectedParts.size === 0) return;
+        
+        // Confirm the bulk delete action
+        DOMUtils.showConfirmDialog(
+          `Are you sure you want to permanently delete ${selectedParts.size} parts? This will remove them and all their history from the database.`,
+          () => {
+            this.performBulkDelete(Array.from(selectedParts));
+          }
+        );
+      });
+    },
+    
+    /**
+     * Clear all selections
+     */
+    clearSelection: function() {
+      // Uncheck all checkboxes
+      document.querySelectorAll('.part-checkbox:checked').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      
+      // Remove selected class from all rows
+      document.querySelectorAll('tr.selected').forEach(row => {
+        row.classList.remove('selected');
+      });
+      
+      // Clear the selection set
+      selectedParts.clear();
+      
+      // Hide the bulk actions bar
+      document.getElementById('bulk-actions-bar').classList.add('hidden');
+    },
+    
+    /**
+     * Show the bulk connect form
+     * @param {Array} partIds - Array of part IDs to connect
+     */
+    showBulkConnectForm: function(partIds) {
+      if (!window.ConnectionController || typeof window.ConnectionController.showBulkConnectForm !== 'function') {
+        // Fallback if bulk connect method doesn't exist (to be implemented)
+        window.ConnectionController.showConnectOptions(partIds[0]);
+        return;
+      }
+      
+      // Call the bulk connect method in ConnectionController
+      window.ConnectionController.showBulkConnectForm(partIds);
+    },
+    
+    /**
+     * Show the bulk disconnect form
+     * @param {Array} partIds - Array of part IDs to disconnect
+     */
+    showBulkDisconnectForm: function(partIds) {
+      if (!window.ConnectionController || typeof window.ConnectionController.showBulkDisconnectForm !== 'function') {
+        // Fallback if bulk disconnect method doesn't exist (to be implemented)
+        window.ConnectionController.showDisconnectOptions(partIds[0]);
+        return;
+      }
+      
+      // Call the bulk disconnect method in ConnectionController
+      window.ConnectionController.showBulkDisconnectForm(partIds);
+    },
+    
+    /**
+     * Show the bulk dispose form
+     * @param {Array} partIds - Array of part IDs to dispose
+     */
+    showBulkDisposeForm: function(partIds) {
+      if (!window.DisposalController || typeof window.DisposalController.showBulkDisposeForm !== 'function') {
+        // Fallback if bulk dispose method doesn't exist (to be implemented)
+        window.DisposalController.showDisposePartForm(partIds[0]);
+        return;
+      }
+      
+      // Call the bulk dispose method in DisposalController
+      window.DisposalController.showBulkDisposeForm(partIds);
+    },
+    
+    /**
+     * Perform bulk delete operation
+     * @param {Array} partIds - Array of part IDs to delete
+     */
+    performBulkDelete: function(partIds) {
+      if (!window.PartModel || typeof window.PartModel.hardDeletePart !== 'function') {
+        console.error('PartModel.hardDeletePart is not available');
+        return;
+      }
+      
+      // Delete each part
+      let successCount = 0;
+      
+      partIds.forEach(partId => {
+        try {
+          window.PartModel.hardDeletePart(partId);
+          successCount++;
+        } catch (err) {
+          console.error(`Error deleting part ${partId}:`, err);
+        }
+      });
+      
+      // Show toast with results
+      if (successCount > 0) {
+        window.DOMUtils.showToast(`${successCount} parts deleted successfully`, 'success');
+      } else {
+        window.DOMUtils.showToast('Failed to delete parts', 'error');
+      }
+      
+      // Clear selection and refresh the list
+      this.clearSelection();
+      this.refresh();
     },
     
     /**

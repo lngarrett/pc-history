@@ -56,7 +56,10 @@ window.App = (function() {
             this.refreshPartsList();
           } else if (tabId === 'rigs-tab') {
             if (window.RigsView && typeof window.RigsView.refresh === 'function') {
+              console.log('Refreshing RigsView from main.js tab click handler');
               window.RigsView.refresh();
+            } else {
+              console.warn('RigsView.refresh is not available when clicking rigs tab');
             }
           } else if (tabId === 'parts-bin-tab') {
             if (window.PartsBinView && typeof window.PartsBinView.refresh === 'function') {
@@ -136,6 +139,7 @@ window.App = (function() {
       this.initTimelineView();
       this.initRigsView();
       this.initPartsBinView();
+      this.initRigHistoryView();
       
       // Refresh the parts list
       this.refreshPartsList();
@@ -232,6 +236,14 @@ window.App = (function() {
       // Will be implemented in parts-bin-view.js
       if (window.PartsBinView && typeof window.PartsBinView.init === 'function') {
         window.PartsBinView.init();
+      }
+    },
+    
+    // Initialize the rig history view component
+    initRigHistoryView: function() {
+      // Will be implemented in rig-history-view.js
+      if (window.RigHistoryView && typeof window.RigHistoryView.init === 'function') {
+        window.RigHistoryView.init();
       }
     }
   };

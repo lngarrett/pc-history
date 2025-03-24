@@ -56,15 +56,15 @@ window.DisposalModel = (function() {
    * Dispose of a part
    * @param {number} partId - Part ID
    * @param {Object} dateInfo - Disposal date information
-   * @param {string} reason - Disposal reason
-   * @param {string} notes - Disposal notes
+   * @param {Object} disposalInfo - Disposal info (method, recipient, price, etc.)
    * @returns {number} New disposal ID
    */
-  function disposePart(partId, dateInfo, reason, notes = '') {
+  function disposePart(partId, dateInfo, disposalInfo = {}) {
     const db = window.DatabaseService.getDatabase();
     if (!db) throw new Error('No database is open');
     
     const { year, month, day } = dateInfo;
+    const { method, recipient, price, notes } = disposalInfo;
     
     // Validate parameters
     if (!partId) {
@@ -79,18 +79,70 @@ window.DisposalModel = (function() {
       // Begin transaction
       db.run('BEGIN TRANSACTION');
       
-      // First disconnect all active connections for this part
-      db.run(`
-        UPDATE connections
-        SET disconnected_at = '${window.DateUtils.createDateString(year, month, day)}',
-            disconnected_precision = '${window.DateUtils.getDatePrecision(year, month, day)}'
-        WHERE (part_id = ${partId} OR motherboard_id = ${partId})
-          AND disconnected_at IS NULL
-      `);
-      
-      // Create the disposal date
-      const disposedAt = window.DateUtils.createDateString(year, month, day);
+      // Format the date strings consistently
+      const dateString = window.DateUtils.createDateString(year, month, day);
       const precision = window.DateUtils.getDatePrecision(year, month, day);
+      
+      // Check if part is a motherboard that has active connections
+      // In that case, we need to disconnect all parts first
+      const checkQuery = `
+        SELECT COUNT(*) as active_connections
+        FROM connections 
+        WHERE motherboard_id = ${partId} AND disconnected_at IS NULL
+      `;
+      
+      const checkResult = db.exec(checkQuery);
+      const activeConnections = checkResult[0].values[0][0];
+      
+      if (activeConnections > 0) {
+        // For a motherboard, disconnect all connected parts with a proper note
+        console.log(`Disconnecting ${activeConnections} parts from motherboard ${partId}`);
+        
+        db.run(`
+          UPDATE connections
+          SET disconnected_at = '${dateString}',
+              disconnected_precision = '${precision}',
+              notes = CASE 
+                WHEN notes IS NULL OR notes = '' THEN 'Disconnected due to motherboard disposal'
+                ELSE notes || '; Disconnected due to motherboard disposal' 
+              END
+          WHERE motherboard_id = ${partId} AND disconnected_at IS NULL
+        `);
+      }
+      
+      // Now disconnect this part from any motherboard it might be connected to
+      const partActiveQuery = `
+        SELECT id, motherboard_id 
+        FROM connections 
+        WHERE part_id = ${partId} AND disconnected_at IS NULL
+      `;
+      
+      const partActiveResult = db.exec(partActiveQuery);
+      
+      if (partActiveResult.length > 0 && partActiveResult[0].values.length > 0) {
+        // Part is connected to a motherboard, disconnect it with a proper note
+        for (const [connectionId, motherboardId] of partActiveResult[0].values) {
+          db.run(`
+            UPDATE connections
+            SET disconnected_at = '${dateString}',
+                disconnected_precision = '${precision}',
+                notes = CASE 
+                  WHEN notes IS NULL OR notes = '' THEN 'Disconnected due to part disposal'
+                  ELSE notes || '; Disconnected due to part disposal' 
+                END
+            WHERE id = ${connectionId}
+          `);
+        }
+      }
+      
+      // Create a reason string from the disposal info
+      let reasonStr = method || 'Disposed';
+      if (recipient) {
+        reasonStr += ` to ${recipient}`;
+      }
+      if (price) {
+        reasonStr += ` for ${price}`;
+      }
       
       // Insert the disposal record
       const query = `
@@ -100,9 +152,9 @@ window.DisposalModel = (function() {
       
       const params = [
         partId,
-        disposedAt,
+        dateString,
         precision,
-        reason || 'Disposed',
+        reasonStr,
         notes || ''
       ];
       
